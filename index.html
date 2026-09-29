@@ -67,8 +67,9 @@ input[type=number] { padding-right: 34px; }
 .unit { position: absolute; right: 10px; top: 50%; transform: translateY(-50%); color: var(--muted); font-size: 14px; pointer-events: none; }
 input:focus-visible, select:focus-visible, button:focus-visible { outline: 3px solid var(--chalk); outline-offset: 1px; }
 .hint { color: var(--muted); font-size: 13px; margin: 0; }
-.opening { display: grid; grid-template-columns: 62px 1fr 1fr auto; gap: 8px; align-items: end; margin-bottom: 10px; }
-.opening .otype { font-weight: 600; align-self: center; }
+.opening { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; align-items: end; margin-bottom: 12px; padding-bottom: 12px; border-bottom: 1px solid var(--line); }
+.opening .ohead { grid-column: 1 / -1; display: flex; justify-content: space-between; align-items: center; }
+.opening .otype { font-weight: 600; }
 .opening label { display: flex; flex-direction: column; gap: 3px; font-size: 13px; color: var(--muted); }
 button {
   font: inherit; cursor: pointer; border-radius: 6px; min-height: 42px; padding: 8px 12px;
@@ -88,6 +89,19 @@ button.primary { background: var(--chalk); border-color: var(--chalk); color: #f
 .legend i { display: inline-block; vertical-align: -2px; margin-right: 5px; }
 .sw-stud { width: 8px; height: 12px; background: var(--chalk); }
 .sw-roof { width: 18px; height: 0; border-top: 2px dashed var(--pencil); vertical-align: 3px !important; }
+.viewbar { display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: center; margin-bottom: 6px; }
+.tabs { display: flex; gap: 4px; flex-wrap: wrap; }
+.tabs button { min-height: 36px; padding: 4px 12px; }
+.tabs button[aria-pressed=true] { background: var(--chalk); border-color: var(--chalk); color: #fff; font-weight: 600; }
+:root[data-theme="dark"] .tabs button[aria-pressed=true] { color: #10203A; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .tabs button[aria-pressed=true] { color: #10203A; } }
+.tog { display: flex; align-items: center; gap: 6px; font-weight: 400; }
+.tog input { width: auto; min-height: 0; }
+.wallnotes h3 { font-family: "Barlow Condensed", sans-serif; font-weight: 600; font-size: 18px; margin: 14px 0 4px; }
+.wallnotes ul { margin: 0; padding-left: 18px; font-size: 14px; }
+.wallnotes li { margin-bottom: 3px; }
+.wallnotes .hint { margin-top: 12px; }
+.sw-hdr { width: 18px; height: 8px; border: 1px dashed var(--ink); }
 .sw-raft { width: 18px; height: 0; border-top: 1.5px solid var(--pencil); opacity: .5; vertical-align: 3px !important; }
 table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
 th { text-align: left; font-weight: 500; font-size: 13px; color: var(--muted); border-bottom: 1px solid var(--line); padding: 6px 6px 6px 0; }
@@ -149,7 +163,7 @@ tr.sec td { padding-top: 16px; font-family: "Barlow Condensed", sans-serif; font
 
       <section class="panel" aria-labelledby="h-open">
         <h2 id="h-open">Doors and windows</h2>
-        <p class="hint" style="margin-bottom:10px">Rough opening size, framing to framing.</p>
+        <p class="hint" style="margin-bottom:10px">Rough opening size, framing to framing. Position is measured from the left end of the wall (top end for side walls) as seen in the plan view.</p>
         <div id="openings"></div>
         <div class="btnrow">
           <button type="button" id="addDoor">Add door</button>
@@ -175,6 +189,10 @@ tr.sec td { padding-top: 16px; font-family: "Barlow Condensed", sans-serif; font
             <label for="dir">Rafters span across the</label>
             <select id="dir"><option value="short" selected>Short side (shorter span)</option><option value="long">Long side</option></select>
           </div>
+          <div class="field full">
+            <label for="hi">Roof high side</label>
+            <select id="hi"><option value="first">Back (top)</option><option value="last">Front (bottom)</option></select>
+          </div>
           <div class="field">
             <label for="rsz">Rafter size</label>
             <select id="rsz"><option value="2x4">2x4</option><option value="2x6" selected>2x6</option><option value="2x8">2x8</option><option value="2x10">2x10</option></select>
@@ -195,12 +213,20 @@ tr.sec td { padding-top: 16px; font-family: "Barlow Condensed", sans-serif; font
       <section class="panel" aria-labelledby="h-plan">
         <h2 id="h-plan">Plan view</h2>
         <div id="facts" class="facts"></div>
-        <svg id="plan" class="plan" role="img" aria-label="Top-down plan showing walls, studs, roof edge and rafters"></svg>
-        <div class="legend">
-          <span><i class="sw-stud"></i>Wall studs</span>
-          <span><i class="sw-roof"></i>Roof edge with overhang</span>
-          <span><i class="sw-raft"></i>Rafters</span>
+        <div class="viewbar">
+          <div class="tabs" id="tabs" role="group" aria-label="View">
+            <button type="button" data-view="plan">Plan</button>
+            <button type="button" data-view="front">Front</button>
+            <button type="button" data-view="back">Back</button>
+            <button type="button" data-view="left">Left</button>
+            <button type="button" data-view="right">Right</button>
+          </div>
+          <label class="tog" id="frameTog"><input type="checkbox" id="frame" checked> Show framing</label>
         </div>
+        <p class="hint" id="viewnote" style="margin-bottom:8px"></p>
+        <svg id="plan" class="plan" role="img" aria-label="Drawing of the building"></svg>
+        <div class="legend" id="legend"></div>
+        <div class="wallnotes" id="wallnotes"></div>
       </section>
 
       <section class="panel" aria-labelledby="h-list">
@@ -227,6 +253,8 @@ tr.sec td { padding-top: 16px; font-family: "Barlow Condensed", sans-serif; font
   var D = 3.5, T = 1.5;                       // actual 2x4 face and thickness, inches
   var STOCK = [8, 10, 12, 14, 16, 18, 20];    // stock lengths, feet
   var openings = [];
+  var view = 'plan', drag = null;
+  var HD = { '2x6': 5.5, '2x8': 7.25, '2x10': 9.25, '2x12': 11.25 };   // actual header depths
   var lastText = '';
 
   function num(id, def) { var v = parseFloat($(id).value); return isFinite(v) ? v : def; }
@@ -278,12 +306,26 @@ tr.sec td { padding-top: 16px; font-family: "Barlow Condensed", sans-serif; font
     24: { '2x4': 66, '2x6': 102, '2x8': 132, '2x10': 168 }
   };
 
+  var WALLS = { front: 'Front (bottom)', back: 'Back (top)', left: 'Left', right: 'Right' };
+  function wallLen(wall) { return (wall === 'front' || wall === 'back') ? num('len', 0) : num('wid', 0); }
+  function addOpening(type, w, h, wall) {
+    var len = wallLen(wall);
+    openings.push({ type: type, w: w, h: h, wall: wall, sill: type === 'Window' ? 36 : 0, pos: Math.max(0, Math.round((len - w) / 2)) });
+    renderOpenings(); calc();
+  }
+
   function renderOpenings() {
     $('openings').innerHTML = openings.length ? openings.map(function (o, i) {
-      return '<div class="opening"><span class="otype">' + o.type + '</span>' +
+      var opts = Object.keys(WALLS).map(function (k) {
+        return '<option value="' + k + '"' + (o.wall === k ? ' selected' : '') + '>' + WALLS[k] + '</option>';
+      }).join('');
+      return '<div class="opening"><div class="ohead"><span class="otype">' + o.type + ' ' + (i + 1) + '</span>' +
+        '<button type="button" data-rm="' + i + '" aria-label="Remove ' + o.type.toLowerCase() + ' ' + (i + 1) + '">Remove</button></div>' +
+        '<label>Wall<select data-i="' + i + '" data-k="wall">' + opts + '</select></label>' +
+        '<label>Position from left/top<input type="number" inputmode="decimal" step="any" min="0" data-i="' + i + '" data-k="pos" value="' + o.pos + '"></label>' +
         '<label>Width<input type="number" inputmode="decimal" step="any" min="1" data-i="' + i + '" data-k="w" value="' + o.w + '"></label>' +
         '<label>Height<input type="number" inputmode="decimal" step="any" min="1" data-i="' + i + '" data-k="h" value="' + o.h + '"></label>' +
-        '<button type="button" data-rm="' + i + '" aria-label="Remove ' + o.type.toLowerCase() + '">Remove</button></div>';
+        (o.type === 'Window' ? '<label>Sill height (floor to bottom of opening)<input type="number" inputmode="decimal" step="any" min="0" data-i="' + i + '" data-k="sill" value="' + o.sill + '"></label>' : '') + '</div>';
     }).join('') : '<p class="hint">None yet.</p>';
   }
 
@@ -315,29 +357,73 @@ tr.sec td { padding-top: 16px; font-family: "Barlow Condensed", sans-serif; font
     /* ---------- walls ---------- */
     var studLen = H - 3 * T;
     var shortLen = W - 2 * D;
-    var perLong = Math.ceil(L / sp) + 1;
-    var perShort = Math.ceil(shortLen / sp) + 1;
-    var studsBase = 2 * perLong + 2 * perShort;
     var cornerExtra = 4 * cornerX;
-    var openNet = 0, cripples = 0, kingsJacks = 0, openArea = 0;
-    var headerRows = [], sillPieces = [];
-    openings.forEach(function (o) {
-      var w = parseFloat(o.w) || 0, h = parseFloat(o.h) || 0;
+    function studPositions(len) {
+      var n = Math.ceil(len / sp) + 1, out = [];
+      for (var j = 0; j < n - 1; j++) out.push(j * sp);
+      out.push(len - T);
+      return out;
+    }
+    // layout stud starts along a wall, measured from that wall's outer corner
+    function wallStuds(wall) {
+      if (wall === 'front' || wall === 'back') return studPositions(L);
+      return studPositions(shortLen).map(function (p) { return D + p; });
+    }
+    var openArea = 0, sillPieces = [], placed = [];
+    openings.forEach(function (o, i) {
+      var w = parseFloat(o.w) || 0, h = parseFloat(o.h) || 0, pos = parseFloat(o.pos) || 0;
       if (w <= 0) return;
-      var removed = Math.floor(w / sp);
-      openNet += 4 - removed;
-      kingsJacks += 4;
-      var c = Math.max(1, removed);
-      cripples += o.type === 'Window' ? c * 2 : c;
-      openArea += w * h;
+      var isWin = o.type === 'Window';
+      var sill = isWin ? Math.max(0, parseFloat(o.sill) || 0) : 0;
+      var len = (o.wall === 'front' || o.wall === 'back') ? L : W;
+      var name = o.type + ' ' + (i + 1), wname = WALLS[o.wall].toLowerCase() + ' wall';
       var hs = headerSize(w);
-      if (!hs) warnings.push(o.type + ' ' + inch(w) + ' wide is beyond a simple header. Get an engineered beam size.');
-      headerRows.push({ o: o, w: w, size: hs || '2x12', stock: stockFor(w + 3) });
-      if (o.type === 'Window') sillPieces.push(w);
+      if (!hs) warnings.push(name + ' is ' + inch(w) + ' wide, beyond a simple header. Get an engineered beam size. A 2x12 is shown as a placeholder.');
+      var size = hs || '2x12', hd = HD[size];
+      var topRO = sill + h;                        // top of rough opening, measured from the floor
+      var above = (H - 2 * T) - (topRO + hd);      // room left above the header, under the top plates
+      var below = isWin ? sill - 2 * T : 0;        // window cripple length under the sill
+      if (pos < 2 * T + D || pos + w > len - 2 * T - D) {
+        warnings.push(name + ' does not fit on the ' + wname + '. Keep it between ' + inch(2 * T + D) + ' and ' + inch(len - 2 * T - D - w) + ' from the left/top so the corner and king/jack studs fit.');
+      }
+      if (above < 0) warnings.push(name + ' with a ' + size + ' header needs ' + inch(topRO + hd) + ' of wall and the framed wall has ' + inch(H - 2 * T) + '. Lower it, shorten it, or raise the wall.');
+      if (isWin && below < 0) warnings.push(name + ' sill height is too low to fit a sill and bottom plate.');
+      placed.push({ idx: i, type: o.type, wall: o.wall, pos: pos, w: w, h: h, name: name, isWin: isWin, sill: sill, size: size, hd: hd, topRO: topRO, above: above, below: below });
+      openArea += w * h;
+      if (isWin) sillPieces.push(w);
     });
-    var studsNet = Math.max(0, studsBase + cornerExtra + openNet);
+    placed.forEach(function (a, i) {
+      placed.slice(i + 1).forEach(function (b) {
+        if (a.wall === b.wall && a.pos < b.pos + b.w + 4 * T && b.pos < a.pos + a.w + 4 * T) {
+          warnings.push(a.name + ' and ' + b.name + ' overlap or are too close on the ' + WALLS[a.wall].toLowerCase() + ' wall.');
+        }
+      });
+    });
+    // a layout stud is dropped when it lands in an opening or its king/jack pairs
+    function blocked(wall, s) {
+      return placed.some(function (o) { return o.wall === wall && s + T > o.pos - 2 * T && s < o.pos + o.w + 2 * T; });
+    }
+    // a layout stud that lands inside the rough opening itself becomes a cripple
+    function crippleAt(o) {
+      return wallStuds(o.wall).filter(function (s) { return s >= o.pos && s + T <= o.pos + o.w; });
+    }
+    var wallList = ['front', 'back', 'left', 'right'];
+    var layoutStuds = 0;
+    wallList.forEach(function (wl) { layoutStuds += wallStuds(wl).filter(function (s) { return !blocked(wl, s); }).length; });
+    var kings = 2 * placed.length;
+    var studsNet = layoutStuds + cornerExtra + kings;           // full-length studs, kings included
     var studsBuy = Math.ceil(studsNet * (1 + waste));
-    var crippleBoards = cripples ? Math.ceil(cripples * (1 + waste) / 2) : 0;
+
+    var shortPieces = [], jackN = 0, cripAbove = 0, cripBelow = 0, headerBySize = {};
+    placed.forEach(function (o) {
+      var jack = o.topRO - T;                                    // jacks stand on the bottom plate and carry the header
+      shortPieces.push(jack, jack); jackN += 2;
+      var n = crippleAt(o).length;
+      if (o.above > 1) for (var c = 0; c < n; c++) { shortPieces.push(o.above); cripAbove++; }
+      if (o.isWin && o.below > 1) for (var d = 0; d < n; d++) { shortPieces.push(o.below); cripBelow++; }
+      (headerBySize[o.size] = headerBySize[o.size] || []).push(o.w + 2 * T, o.w + 2 * T);   // doubled, bearing on the jacks
+    });
+    var shortTally = pack(shortPieces);
 
     var platePieces = [];
     for (var i = 0; i < 2; i++) for (var k = 0; k < 3; k++) { platePieces.push(L); platePieces.push(shortLen); }
@@ -352,6 +438,11 @@ tr.sec td { padding-top: 16px; font-family: "Barlow Condensed", sans-serif; font
     var rafStock = stockFor(rafLen);
     var rafCount = Math.ceil((along + 2 * ov) / rsp) + 1;
     var rise = span * pitch / 12;
+    var spanIsW = (dir === 'short') ? (W <= L) : (W > L);   // true when rafters run front to back
+    var hiSel = $('hi');
+    hiSel.options[0].text = spanIsW ? 'Back (top)' : 'Left';
+    hiSel.options[1].text = spanIsW ? 'Front (bottom)' : 'Right';
+    var hiSide = hiSel.value === 'last' ? (spanIsW ? 'front' : 'right') : (spanIsW ? 'back' : 'left');
     var angle = Math.atan(pitch / 12) * 180 / Math.PI;
     if (!rafStock) warnings.push('Rafters come out ' + fi(rafLen) + ' long. That is longer than 20′ stock. Add a support wall or reduce the span.');
     var limit = MAXSPAN[rsp][rsz];
@@ -375,13 +466,21 @@ tr.sec td { padding-top: 16px; font-family: "Barlow Condensed", sans-serif; font
     function sec(label) { rows.push({ sec: label }); text.push(''); text.push(label.toUpperCase()); }
 
     sec('Walls');
-    add('Studs', 'cut each to ' + inch(studLen), "2x4 × 8′", studsBuy);
+    add('Studs', 'cut each to ' + inch(studLen) + (kings ? ', includes ' + kings + ' king studs' : ''), "2x4 × 8′", studsBuy);
     Object.keys(plateTally).sort(function (a, b) { return a - b; }).forEach(function (s) {
       add('Plates' + (sillPieces.length ? ' and window sills' : ''), 'bottom plate plus doubled top plate', "2x4 × " + s + "′", plateTally[s]);
     });
-    if (crippleBoards) add('Cripple studs', cripples + ' short pieces above headers and under sills', "2x4 × 8′", crippleBoards);
-    headerRows.forEach(function (h) {
-      add(h.o.type + ' header', inch(h.w) + ' opening, doubled with ½″ spacer', h.size + ' × ' + (h.stock || 12) + "′", 2);
+    Object.keys(shortTally).sort(function (x, y) { return x - y; }).forEach(function (st) {
+      var parts = [jackN + ' jack studs'];
+      if (cripAbove) parts.push(cripAbove + ' cripples above headers');
+      if (cripBelow) parts.push(cripBelow + ' cripples under sills');
+      add('Jacks and cripples', parts.join(', ') + ' (all sizes, cut from these boards)', "2x4 × " + st + "′", Math.ceil(shortTally[st] * (1 + waste)));
+    });
+    Object.keys(headerBySize).sort().forEach(function (size) {
+      var tally = pack(headerBySize[size]);
+      Object.keys(tally).sort(function (x, y) { return x - y; }).forEach(function (st) {
+        add('Headers', size + ', ' + (headerBySize[size].length / 2) + ' opening' + (headerBySize[size].length > 2 ? 's' : '') + ', doubled with ½″ spacer', size + ' × ' + st + "′", tally[st]);
+      });
     });
     if (wallSheets) add('Wall sheathing (optional)', fmt1(wallSqft) + ' sq ft', '4×8 sheet', wallSheets);
 
@@ -407,6 +506,147 @@ tr.sec td { padding-top: 16px; font-family: "Barlow Condensed", sans-serif; font
       '<div class="fact roof"><b>' + fi(rafLen) + '</b><span>Rafter length, ' + angle.toFixed(1) + '° slope</span></div>' +
       '<div class="fact roof"><b>' + rafCount + '</b><span>Rafters, high edge ' + inch(rise) + ' above low</span></div>';
 
+    /* ---------- drawing ---------- */
+    var WALLNAME = { front: 'Front', back: 'Back', left: 'Left', right: 'Right' };
+    $('tabs').querySelectorAll('button').forEach(function (b) { b.setAttribute('aria-pressed', b.dataset.view === view ? 'true' : 'false'); });
+    $('frameTog').style.display = view === 'plan' ? 'none' : '';
+    $('viewnote').textContent = view === 'plan'
+      ? 'Drag a door or window along its wall, or onto another wall. Double-click one to see that wall.'
+      : WALLNAME[view] + ' wall seen from outside. Drag an opening sideways to move it, and drag a window up or down to change its sill height.';
+
+    function drawElevation(wall) {
+      var horiz = wall === 'front' || wall === 'back';
+      var len = horiz ? L : W;
+      var flip = wall === 'back' || wall === 'right';   // seen from outside, these read right to left compared with the plan (positions run left to right, top to bottom)
+      var frame = $('frame').checked;
+      var RD = { '2x4': 3.5, '2x6': 5.5, '2x8': 7.25, '2x10': 9.25 }[rsz], pr = pitch / 12;
+      function Y(h) { return H - h; }
+      function X(s0, w0) { return flip ? len - s0 - w0 : s0; }
+      function box(s0, w0, h0, h1, fill, extra) {   // wall coordinates s0..s0+w0, heights h0..h1 above the floor
+        return '<rect x="' + X(s0, w0) + '" y="' + Y(h1) + '" width="' + w0 + '" height="' + (h1 - h0) + '" fill="' + fill + '"' + (extra || '') + '/>';
+      }
+      var here = placed.filter(function (o) { return o.wall === wall; });
+      var g = '';
+      var roofFill = ' fill="var(--pencil)" fill-opacity="0.35" stroke="var(--pencil)" stroke-width="0.8"';
+      var gapStyle = ' stroke="var(--warn)" stroke-width="0.7" stroke-dasharray="3 2"';
+      var slopeAlong = horiz ? !spanIsW : spanIsW;   // rafters run along this wall, so the slope shows in profile
+      if (slopeAlong) {
+        var hiRight = spanIsW ? (wall === 'left' ? hiSide === 'front' : hiSide === 'back') : (wall === 'front' ? hiSide === 'right' : hiSide === 'left');
+        var top = function (x) { return H + RD + (hiRight ? x : span - x) * pr; };
+        var pts = [[-ov, top(-ov)], [len + ov, top(len + ov)], [len + ov, top(len + ov) - RD], [-ov, top(-ov) - RD]];
+        g += '<polygon points="' + pts.map(function (q) { return q[0] + ',' + Y(q[1]); }).join(' ') + '"' + roofFill + '/>';
+        if (rise > 0.5) {
+          g += '<polygon points="0,' + Y(H) + ' ' + len + ',' + Y(H) + ' ' + (hiRight ? len : 0) + ',' + Y(H + rise) + '" fill="none"' + gapStyle + '/>';
+          g += '<text x="' + (len * (hiRight ? 0.75 : 0.25)) + '" y="' + (Y(H) - 1.5) + '" font-size="4" text-anchor="middle" fill="var(--warn)">wall needs ' + inch(rise) + ' more here</text>';
+        }
+      } else {
+        var gapH = wall === hiSide ? rise : 0;
+        g += box(-ov, len + 2 * ov, H + gapH, H + gapH + RD, 'var(--pencil)', ' fill-opacity="0.35" stroke="var(--pencil)" stroke-width="0.8"');
+        if (gapH > 0.5) {
+          g += box(0, len, H, H + gapH, 'none', gapStyle);
+          g += '<text x="' + (len / 2) + '" y="' + Y(H + gapH / 2 - 1) + '" font-size="4" text-anchor="middle" fill="var(--warn)">wall needs ' + inch(gapH) + ' more here</text>';
+        }
+      }
+      g += '<line x1="' + (-ov - 6) + '" x2="' + (len + ov + 6) + '" y1="' + Y(0) + '" y2="' + Y(0) + '" stroke="var(--muted)" stroke-width="0.8"/>';
+      var ink = ' stroke="var(--ink)" stroke-width="0.4"';
+      if (!frame) {
+        g += box(0, len, 0, H, 'var(--panel)', ' stroke="var(--ink)" stroke-width="0.6"');
+        for (var yy = 8; yy < H; yy += 8) g += '<line x1="0" x2="' + len + '" y1="' + Y(yy) + '" y2="' + Y(yy) + '" stroke="var(--line)" stroke-width="0.4"/>';
+      } else {
+        g += box(0, len, 0, H, 'var(--bg)', ink);
+        g += box(0, len, 0, T, 'var(--chalk)', ink);
+        here.forEach(function (o) { if (!o.isWin) g += box(o.pos, o.w, 0, T, 'var(--bg)'); });   // plate is cut out of door openings
+        g += box(0, len, H - 2 * T, H, 'var(--chalk)', ink) + '<line x1="0" x2="' + len + '" y1="' + Y(H - T) + '" y2="' + Y(H - T) + '" stroke="var(--ink)" stroke-width="0.3"/>';
+        if (!horiz) g += box(0, D, T, H - 2 * T, 'var(--chalk)', ' opacity="0.3"') + box(len - D, D, T, H - 2 * T, 'var(--chalk)', ' opacity="0.3"');
+        wallStuds(wall).forEach(function (s0) { if (!blocked(wall, s0)) g += box(s0, T, T, H - 2 * T, 'var(--chalk)'); });
+        here.forEach(function (o) {
+          var a = o.pos, b = o.pos + o.w;
+          g += box(a - 2 * T, T, T, H - 2 * T, 'var(--chalk)') + box(b + T, T, T, H - 2 * T, 'var(--chalk)');   // kings
+          g += box(a - T, T, T, o.topRO, 'var(--chalk)') + box(b, T, T, o.topRO, 'var(--chalk)');              // jacks
+          g += box(a - T, o.w + 2 * T, o.topRO, o.topRO + o.hd, 'var(--chalk)', ink);                          // header
+          var hx = X(a - T, o.w + 2 * T), hy = Y(o.topRO + o.hd / 2);
+          g += '<line x1="' + hx + '" x2="' + (hx + o.w + 2 * T) + '" y1="' + hy + '" y2="' + hy + '" stroke="var(--bg)" stroke-width="0.6"/>';
+          crippleAt(o).forEach(function (s0) {
+            if (o.above > 1) g += box(s0, T, o.topRO + o.hd, H - 2 * T, 'var(--chalk)', ' opacity="0.6"');
+            if (o.isWin && o.below > 1) g += box(s0, T, T, T + o.below, 'var(--chalk)', ' opacity="0.6"');
+          });
+          if (o.isWin) g += box(a, o.w, o.sill - T, o.sill, 'var(--chalk)');
+        });
+      }
+      here.forEach(function (o) {
+        var x0 = X(o.pos, o.w), cx = x0 + o.w / 2, bot = o.isWin ? o.sill : 0;
+        g += '<g data-o="' + o.idx + '" style="cursor:grab;touch-action:none">';
+        if (o.isWin) {
+          g += box(o.pos, o.w, o.sill, o.topRO, 'var(--chalk-soft)', ' fill-opacity="0.85" stroke="var(--ink)" stroke-width="0.8"');
+          g += '<line x1="' + cx + '" x2="' + cx + '" y1="' + Y(o.sill) + '" y2="' + Y(o.topRO) + '" stroke="var(--ink)" stroke-width="0.5"/>' +
+               '<line x1="' + x0 + '" x2="' + (x0 + o.w) + '" y1="' + Y((o.sill + o.topRO) / 2) + '" y2="' + Y((o.sill + o.topRO) / 2) + '" stroke="var(--ink)" stroke-width="0.5"/>';
+        } else {
+          g += box(o.pos, o.w, 0, o.topRO, 'var(--pencil)', ' fill-opacity="0.3" stroke="var(--ink)" stroke-width="0.8"');
+          g += '<circle cx="' + (x0 + (flip ? 5 : o.w - 5)) + '" cy="' + Y(36) + '" r="1.6" fill="var(--ink)"/>';
+        }
+        g += '<text x="' + cx + '" y="' + (Y((bot + o.topRO) / 2) + 1.5) + '" font-size="4" text-anchor="middle" fill="var(--ink)">' + o.name + '</text>';
+        g += box(o.pos - 2 * T, o.w + 4 * T, bot, o.topRO + o.hd, 'transparent');   // easy-to-grab hit area
+        g += '</g>';
+      });
+      /* ---------- lengths and positions that differ from the standard stud layout ---------- */
+      var halo = ' stroke="var(--bg)" stroke-width="1.1" paint-order="stroke" stroke-linejoin="round"';
+      function htxt(cx, cy, str, fill, hc) { return '<text x="' + cx + '" y="' + cy + '" font-size="3.4" text-anchor="middle" fill="' + (fill || 'var(--ink)') + '"' + (hc ? halo.replace('var(--bg)', hc) : halo) + '>' + str + '</text>'; }
+      function vtxt(cx, cy, str, fill) { return '<text x="' + cx + '" y="' + cy + '" font-size="3.4" text-anchor="middle" fill="' + (fill || 'var(--ink)') + '" transform="rotate(-90 ' + cx + ' ' + cy + ')"' + halo + '>' + str + '</text>'; }
+      var toView = function (s0, w0) { return X(s0, w0) + w0 / 2; };   // center of a member as measured from the left end of this view
+      var listIn = function (vals) { return vals.sort(function (p, q) { return p - q; }).map(inch).join(', '); };
+      if (frame) {
+        here.forEach(function (o) {
+          var a = o.pos, b = o.pos + o.w, jackLen = o.topRO - T;
+          var vl = X(a - 2 * T, o.w + 4 * T), cxo = X(a, o.w) + o.w / 2;
+          g += htxt(cxo, Y(o.topRO + o.hd / 2) + 1.2, o.size + ' × ' + inch(o.w + 2 * T), 'var(--bg)', 'var(--chalk)');
+          g += vtxt(vl - 1.8, Y((T + o.topRO) / 2), '2 jacks ' + inch(jackLen));
+          crippleAt(o).forEach(function (s0) {
+            var cx2 = toView(s0, T);
+            if (o.above > 1) g += vtxt(cx2, Y((o.topRO + o.hd + H - 2 * T) / 2), inch(o.above));
+            if (o.isWin && o.below > 1) g += vtxt(cx2, Y(T + o.below / 2), inch(o.below));
+          });
+          if (o.isWin) g += htxt(cxo, Y(o.sill - T) + 4.8, 'sill ' + inch(o.w));
+        });
+      }
+      if (here.length) {
+        // dimension chain along the floor: wall end to opening, opening width, opening to opening, opening to wall end
+        var iv = here.map(function (o) { return [X(o.pos, o.w), X(o.pos, o.w) + o.w]; }).sort(function (p, q) { return p[0] - q[0]; });
+        var cp = [0];
+        iv.forEach(function (r) { cp.push(r[0], r[1]); });
+        cp.push(len);
+        var yd = H + 4;
+        g += '<line x1="0" x2="' + len + '" y1="' + yd + '" y2="' + yd + '" stroke="var(--muted)" stroke-width="0.4"/>';
+        cp.forEach(function (px) { g += '<line x1="' + px + '" x2="' + px + '" y1="' + (yd - 1.6) + '" y2="' + (yd + 1.6) + '" stroke="var(--muted)" stroke-width="0.4"/>'; });
+        for (var ci = 0; ci < cp.length - 1; ci++) {
+          if (cp[ci + 1] - cp[ci] > 0.5) g += htxt((cp[ci] + cp[ci + 1]) / 2, yd + 5.4, inch(cp[ci + 1] - cp[ci]), ci % 2 ? 'var(--pencil)' : 'var(--ink)');
+        }
+      }
+      var wn = '<p class="hint">Only framing that differs from the standard layout is listed. Everything else is a stud cut to ' + inch(studLen) + ' at ' + sp + '″ on center. Measurements run from the left end of the wall as seen in this view.</p>';
+      if (!here.length) wn += '<p class="hint">No openings on this wall.</p>';
+      here.slice().sort(function (p, q) { return X(p.pos, p.w) - X(q.pos, q.w); }).forEach(function (o) {
+        var a = o.pos, b = o.pos + o.w, cr = crippleAt(o);
+        var dropped = wallStuds(wall).filter(function (s0) { return s0 + T > a - 2 * T && s0 < b + 2 * T; }).map(function (s0) { return toView(s0, T); });
+        wn += '<h3>' + o.name + '</h3><ul>' +
+          '<li>Rough opening ' + inch(o.w) + ' wide × ' + inch(o.h) + ' tall' + (o.isWin ? ', sill ' + inch(o.sill) + ' above the floor' : '') + ', starting ' + inch(X(a, o.w)) + ' from the left end.</li>' +
+          '<li>Kings: 2 × ' + inch(studLen) + ' (full length), centers at ' + listIn([toView(a - 2 * T, T), toView(b + T, T)]) + '.</li>' +
+          '<li>Jacks: 2 × ' + inch(o.topRO - T) + ', centers at ' + listIn([toView(a - T, T), toView(b, T)]) + '.</li>' +
+          '<li>Header: doubled ' + o.size + ', 2 × ' + inch(o.w + 2 * T) + ', bottom ' + inch(o.topRO) + ' above the floor.</li>' +
+          (cr.length && o.above > 1 ? '<li>Cripples above the header: ' + cr.length + ' × ' + inch(o.above) + ', centers at ' + listIn(cr.map(function (s0) { return toView(s0, T); })) + '.</li>' : '') +
+          (o.isWin ? '<li>Sill: 1 × ' + inch(o.w) + '.</li>' : '') +
+          (o.isWin && cr.length && o.below > 1 ? '<li>Cripples under the sill: ' + cr.length + ' × ' + inch(o.below) + ', same centers.</li>' : '') +
+          (dropped.length ? '<li>Layout studs displaced by this opening: centers at ' + listIn(dropped) + '.</li>' : '') + '</ul>';
+      });
+      $('wallnotes').innerHTML = wn;
+      var mm = 6, up = RD + rise;
+      $('plan').setAttribute('viewBox', (-ov - mm) + ' ' + (-up - mm) + ' ' + (len + 2 * ov + 2 * mm) + ' ' + (H + up + 2 * mm + 8));
+      $('plan').setAttribute('aria-label', WALLNAME[wall] + ' wall elevation seen from outside');
+      $('plan').innerHTML = g;
+      $('legend').innerHTML = frame
+        ? '<span><i class="sw-stud"></i>Studs, kings, jacks and cripples</span><span><i class="sw-hdr"></i>Header</span><span><i class="sw-roof"></i>Roof</span><span style="color:var(--warn)">Dashed red: extra wall height the sloped roof needs</span>'
+        : '<span><i class="sw-roof"></i>Roof</span><span>Turn on Show framing to see studs and headers</span>';
+    }
+
+    if (view !== 'plan') { drawElevation(view); } else {
     /* ---------- plan view ---------- */
     var m = 6, vx = -ov - m, vy = -ov - m, vw = L + 2 * ov + 2 * m, vh = W + 2 * ov + 2 * m;
     var svg = '';
@@ -416,7 +656,6 @@ tr.sec td { padding-top: 16px; font-family: "Barlow Condensed", sans-serif; font
     var nR = rafCount;
     for (var r = 0; r < nR - 1; r++) rafPos.push(-ov + r * rsp);
     // rafters run across the span: if span is the width (vertical), rafters are vertical lines positioned along x
-    var spanIsW = (dir === 'short') ? (W <= L) : (W > L);
     rafPos.push((spanIsW ? L : W) + ov);
     rafPos.forEach(function (p) {
       if (spanIsW) rafSvg += '<line x1="' + p + '" y1="' + (-ov) + '" x2="' + p + '" y2="' + (W + ov) + '"/>';
@@ -424,31 +663,68 @@ tr.sec td { padding-top: 16px; font-family: "Barlow Condensed", sans-serif; font
     });
     svg += '<g stroke="var(--pencil)" stroke-width="0.5" opacity="0.5">' + rafSvg + '</g>';
     svg += '<rect x="' + (-ov) + '" y="' + (-ov) + '" width="' + (L + 2 * ov) + '" height="' + (W + 2 * ov) + '" fill="none" stroke="var(--pencil)" stroke-width="1" stroke-dasharray="4 3"/>';
+    if (ov >= 6) {
+      var hl = { back: [L / 2, -ov / 2 + 1.5, 0], front: [L / 2, W + ov / 2 + 1.5, 0], left: [-ov / 2 + 1.5, W / 2, -90], right: [L + ov / 2 + 1.5, W / 2, 90] }[hiSide];
+      svg += '<text x="' + hl[0] + '" y="' + hl[1] + '" font-size="4.5" text-anchor="middle" fill="var(--pencil)" transform="rotate(' + hl[2] + ' ' + hl[0] + ' ' + hl[1] + ')">roof high side</text>';
+    }
     // walls
     svg += '<rect x="0" y="0" width="' + L + '" height="' + W + '" fill="var(--chalk-soft)" stroke="var(--ink)" stroke-width="0.6"/>';
     svg += '<rect x="' + D + '" y="' + D + '" width="' + (L - 2 * D) + '" height="' + (W - 2 * D) + '" fill="var(--bg)" stroke="var(--ink)" stroke-width="0.4"/>';
-    function studPositions(len) {
-      var n = Math.ceil(len / sp) + 1, out = [];
-      for (var j = 0; j < n - 1; j++) out.push(j * sp);
-      out.push(len - T);
-      return out;
-    }
     var st = '';
     studPositions(L).forEach(function (p) {
-      st += '<rect x="' + p + '" y="0" width="' + T + '" height="' + D + '"/>';
-      st += '<rect x="' + p + '" y="' + (W - D) + '" width="' + T + '" height="' + D + '"/>';
+      if (!blocked('back', p)) st += '<rect x="' + p + '" y="0" width="' + T + '" height="' + D + '"/>';
+      if (!blocked('front', p)) st += '<rect x="' + p + '" y="' + (W - D) + '" width="' + T + '" height="' + D + '"/>';
     });
     studPositions(shortLen).forEach(function (p) {
-      st += '<rect x="0" y="' + (D + p) + '" width="' + D + '" height="' + T + '"/>';
-      st += '<rect x="' + (L - D) + '" y="' + (D + p) + '" width="' + D + '" height="' + T + '"/>';
+      if (!blocked('left', D + p)) st += '<rect x="0" y="' + (D + p) + '" width="' + D + '" height="' + T + '"/>';
+      if (!blocked('right', D + p)) st += '<rect x="' + (L - D) + '" y="' + (D + p) + '" width="' + D + '" height="' + T + '"/>';
     });
     svg += '<g fill="var(--chalk)">' + st + '</g>';
+
+    // openings: clear the wall band, add king and jack studs, then a door swing or window glass line
+    placed.forEach(function (o) {
+      svg += '<g data-o="' + o.idx + '" style="cursor:grab;touch-action:none">';
+      var horiz = o.wall === 'front' || o.wall === 'back';
+      var off = o.wall === 'back' ? 0 : o.wall === 'front' ? W - D : o.wall === 'left' ? 0 : L - D;   // wall band origin on the cross axis
+      function R(a, b, wd, ht, fill, extra) {   // a along the wall, b across it
+        return horiz ? '<rect x="' + a + '" y="' + (off + b) + '" width="' + wd + '" height="' + ht + '" fill="' + fill + '"' + (extra || '') + '/>'
+                     : '<rect x="' + (off + b) + '" y="' + a + '" width="' + ht + '" height="' + wd + '" fill="' + fill + '"' + (extra || '') + '/>';
+      }
+      svg += R(o.pos, 0, o.w, D, 'var(--bg)');
+      crippleAt(o).forEach(function (cs) { svg += R(cs, 0, T, D, 'var(--chalk)', ' opacity="0.45"'); });
+      svg += R(o.pos - 2 * T, 0, 2 * T, D, 'var(--chalk)') + R(o.pos + o.w, 0, 2 * T, D, 'var(--chalk)');
+      svg += R(o.pos - T, 0, o.w + 2 * T, D, 'none', ' stroke="var(--ink)" stroke-width="0.5" stroke-dasharray="2 1.5"');
+      if (o.type === 'Window') {
+        var mid = off + D / 2;
+        svg += horiz ? '<line x1="' + o.pos + '" y1="' + mid + '" x2="' + (o.pos + o.w) + '" y2="' + mid + '" stroke="var(--ink)" stroke-width="1.2"/>'
+                     : '<line x1="' + mid + '" y1="' + o.pos + '" x2="' + mid + '" y2="' + (o.pos + o.w) + '" stroke="var(--ink)" stroke-width="1.2"/>';
+      } else {
+        // leaf hinged at the start of the opening, swinging into the room
+        var s = o.w, hx, hy, ex, ey, ax, ay;
+        if (o.wall === 'back')       { hx = o.pos;     hy = D;     ex = hx;     ey = hy + s; ax = o.pos + s; ay = D; }
+        else if (o.wall === 'front') { hx = o.pos;     hy = W - D; ex = hx;     ey = hy - s; ax = o.pos + s; ay = W - D; }
+        else if (o.wall === 'left')  { hx = D;         hy = o.pos; ex = hx + s; ey = hy;     ax = D;         ay = o.pos + s; }
+        else                         { hx = L - D;     hy = o.pos; ex = hx - s; ey = hy;     ax = L - D;     ay = o.pos + s; }
+        var sweep = (o.wall === 'back' || o.wall === 'right') ? 0 : 1;
+        svg += '<g stroke="var(--ink)" fill="none" stroke-width="0.8"><line x1="' + hx + '" y1="' + hy + '" x2="' + ex + '" y2="' + ey + '"/>' +
+               '<path d="M ' + ex + ' ' + ey + ' A ' + s + ' ' + s + ' 0 0 ' + sweep + ' ' + ax + ' ' + ay + '" stroke-dasharray="3 2" opacity="0.6"/></g>';
+      }
+      var lx = horiz ? o.pos + o.w / 2 : (o.wall === 'left' ? D + 3 : L - D - 3);
+      var ly = horiz ? (o.wall === 'back' ? D + 12 : W - D - 6) : o.pos + o.w / 2 + 3;
+      svg += '<text x="' + lx + '" y="' + ly + '" font-size="5" text-anchor="' + (o.wall === 'left' ? 'start' : o.wall === 'right' ? 'end' : 'middle') + '" fill="var(--muted)">' + o.name + '</text>';
+      svg += R(o.pos - 2 * T, -6, o.w + 4 * T, D + 12, 'transparent') + '</g>';
+    });
     $('plan').setAttribute('viewBox', vx + ' ' + vy + ' ' + vw + ' ' + vh);
     $('plan').innerHTML = svg;
+    $('plan').setAttribute('aria-label', 'Top-down plan showing walls, studs, roof edge and rafters');
+    $('wallnotes').innerHTML = '';
+    $('legend').innerHTML = '<span><i class="sw-stud"></i>Wall studs</span><span><i class="sw-roof"></i>Roof edge with overhang</span><span><i class="sw-raft"></i>Rafters</span><span><i class="sw-hdr"></i>Header above opening</span>';
+    }
 
     /* ---------- notes ---------- */
     var notes = [];
     notes.push('Studs are cut to ' + inch(studLen) + ' so the wall stands ' + inch(H) + ' with three plates. Precut 92⅝″ studs would make a 97⅛″ wall.');
+    notes.push('Each opening gets two king studs (full length), two jack studs under the header, a doubled header on edge, and cripples above it (and below the sill on windows) wherever the stud layout lands inside the opening. Openings are measured from the floor, so a door height of 80 means the top of the rough opening is 80″ up. Window height is measured above the sill height.');
     notes.push('Long walls run full length. Short walls fit between them at ' + fi(shortLen) + '.');
     notes.push('Use pressure-treated lumber for the bottom plate on concrete or anything near the ground. Cut the plate out of door openings after the walls are up.');
     notes.push('Rafters sit on level walls and get a birdsmouth cut. Rafters run ' + fi(rafLen) + ' along the slope, which includes both overhangs.');
@@ -474,8 +750,8 @@ tr.sec td { padding-top: 16px; font-family: "Barlow Condensed", sans-serif; font
       renderOpenings(); calc();
     }
   });
-  $('addDoor').addEventListener('click', function () { openings.push({ type: 'Door', w: 36, h: 80 }); renderOpenings(); calc(); });
-  $('addWin').addEventListener('click', function () { openings.push({ type: 'Window', w: 36, h: 36 }); renderOpenings(); calc(); });
+  $('addDoor').addEventListener('click', function () { addOpening('Door', 36, 80, 'front'); });
+  $('addWin').addEventListener('click', function () { addOpening('Window', 36, 36, 'back'); });
   $('copy').addEventListener('click', function () {
     var s = $('status');
     if (!lastText) { s.textContent = 'Nothing to copy yet.'; return; }
@@ -491,6 +767,63 @@ tr.sec td { padding-top: 16px; font-family: "Barlow Condensed", sans-serif; font
     try {
       navigator.clipboard.writeText(lastText).then(function () { s.textContent = 'List copied.'; }, fallback);
     } catch (err) { fallback(); }
+  });
+
+  /* ---------- view tabs and drag ---------- */
+  $('tabs').addEventListener('click', function (e) {
+    var v = e.target.dataset && e.target.dataset.view;
+    if (v) { view = v; calc(); }
+  });
+  var plan = $('plan');
+  function svgPt(e) {
+    var pt = plan.createSVGPoint(); pt.x = e.clientX; pt.y = e.clientY;
+    return pt.matrixTransform(plan.getScreenCTM().inverse());
+  }
+  function clampPos(wall, pos, w) {
+    var lo = 2 * T + D, hi = wallLen(wall) - 2 * T - D - w;
+    return Math.round(Math.min(Math.max(pos, lo), Math.max(lo, hi)));
+  }
+  function syncInputs(i) {
+    var o = openings[i];
+    ['pos', 'sill'].forEach(function (k) {
+      var el = document.querySelector('input[data-i="' + i + '"][data-k="' + k + '"]');
+      if (el) el.value = o[k];
+    });
+    var sel = document.querySelector('select[data-i="' + i + '"]');
+    if (sel) sel.value = o.wall;
+  }
+  plan.addEventListener('pointerdown', function (e) {
+    var g = e.target.closest && e.target.closest('[data-o]');
+    if (!g) return;
+    var i = +g.getAttribute('data-o'), o = openings[i], q = svgPt(e);
+    drag = { i: i, x: q.x, y: q.y, pos: parseFloat(o.pos) || 0, sill: parseFloat(o.sill) || 0 };
+    try { plan.setPointerCapture(e.pointerId); } catch (err) {}
+    e.preventDefault();
+  });
+  plan.addEventListener('pointermove', function (e) {
+    if (!drag) return;
+    var o = openings[drag.i], q = svgPt(e), w = parseFloat(o.w) || 0;
+    if (view === 'plan') {
+      var d = { back: q.y, front: num('wid', 0) - q.y, left: q.x, right: num('len', 0) - q.x };
+      var wall = Object.keys(d).sort(function (a, b) { return d[a] - d[b]; })[0];
+      o.wall = wall;
+      o.pos = clampPos(wall, (wall === 'front' || wall === 'back' ? q.x : q.y) - w / 2, w);
+    } else {
+      var flip = view === 'back' || view === 'right';
+      o.pos = clampPos(view, drag.pos + (q.x - drag.x) * (flip ? -1 : 1), w);
+      if (o.type === 'Window') {
+        var hd = HD[headerSize(w) || '2x12'], h = parseFloat(o.h) || 0;
+        var maxSill = Math.max(2 * T, num('ht', 96) - 2 * T - hd - h);
+        o.sill = Math.round(Math.min(Math.max(drag.sill - (q.y - drag.y), 2 * T), maxSill));
+      }
+    }
+    syncInputs(drag.i);
+    calc();
+  });
+  ['pointerup', 'pointercancel'].forEach(function (ev) { plan.addEventListener(ev, function () { drag = null; }); });
+  plan.addEventListener('dblclick', function (e) {
+    var g = e.target.closest && e.target.closest('[data-o]');
+    if (g && view === 'plan') { view = openings[+g.getAttribute('data-o')].wall; calc(); }
   });
 
   renderOpenings();
