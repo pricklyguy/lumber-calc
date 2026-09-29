@@ -173,35 +173,36 @@ tr.sec td { padding-top: 16px; font-family: "Barlow Condensed", sans-serif; font
 
       <section class="panel" aria-labelledby="h-roof">
         <h2 id="h-roof">Roof</h2>
+        <label class="tog" style="margin-bottom:12px"><input type="checkbox" id="roofOn" checked> Include roof</label>
         <div class="grid2">
-          <div class="field">
+          <div class="roofonly field">
             <label for="pitch">Pitch (rise per 12)</label>
             <div class="inp"><input id="pitch" type="number" inputmode="decimal" step="any" min="0.5" value="3"><span class="unit">in</span></div>
           </div>
-          <div class="field">
+          <div class="roofonly field">
             <label for="ov">Overhang, every side</label>
             <div class="inp"><input id="ov" type="number" inputmode="decimal" step="any" min="0" value="12"><span class="unit">in</span></div>
           </div>
-          <div class="field full">
+          <div class="roofonly field full">
             <p class="hint">Under 4 in 12 needs metal or membrane roofing, or special shingle underlayment.</p>
           </div>
-          <div class="field full">
+          <div class="roofonly field full">
             <label for="dir">Rafters span across the</label>
             <select id="dir"><option value="short" selected>Short side (shorter span)</option><option value="long">Long side</option></select>
           </div>
-          <div class="field full">
+          <div class="roofonly field full">
             <label for="hi">Roof high side</label>
             <select id="hi"><option value="first">Back (top)</option><option value="last">Front (bottom)</option></select>
           </div>
-          <div class="field">
+          <div class="roofonly field">
             <label for="rsz">Rafter size</label>
             <select id="rsz"><option value="2x4">2x4</option><option value="2x6" selected>2x6</option><option value="2x8">2x8</option><option value="2x10">2x10</option></select>
           </div>
-          <div class="field">
+          <div class="roofonly field">
             <label for="rsp">Rafter spacing</label>
             <select id="rsp"><option value="16" selected>16″ on center</option><option value="24">24″ on center</option></select>
           </div>
-          <div class="field full">
+          <div class="roofonly field full">
             <label for="waste">Waste allowance</label>
             <div class="inp"><input id="waste" type="number" inputmode="decimal" step="any" min="0" value="10"><span class="unit">%</span></div>
           </div>
@@ -338,7 +339,9 @@ tr.sec td { padding-top: 16px; font-family: "Barlow Condensed", sans-serif; font
   function calc() {
     var L = num('len', 0), W = num('wid', 0), H = num('ht', 96);
     var sp = +$('sp').value, cornerX = +$('corner').value;
-    var pitch = num('pitch', 3), ov = Math.max(0, num('ov', 12));
+    var roofOn = $('roofOn').checked;
+    document.querySelectorAll('.roofonly').forEach(function (el) { el.style.display = roofOn ? '' : 'none'; });
+    var pitch = num('pitch', 3), ov = roofOn ? Math.max(0, num('ov', 12)) : 0;
     var dir = $('dir').value, rsz = $('rsz').value, rsp = +$('rsp').value;
     var waste = Math.max(0, num('waste', 10)) / 100;
 
@@ -451,9 +454,9 @@ tr.sec td { padding-top: 16px; font-family: "Barlow Condensed", sans-serif; font
     hiSel.options[1].text = spanIsW ? 'Front (bottom)' : 'Right';
     var hiSide = hiSel.value === 'last' ? (spanIsW ? 'front' : 'right') : (spanIsW ? 'back' : 'left');
     var angle = Math.atan(pitch / 12) * 180 / Math.PI;
-    if (!rafStock) warnings.push('Rafters come out ' + fi(rafLen) + ' long. That is longer than 20′ stock. Add a support wall or reduce the span.');
+    if (roofOn && !rafStock) warnings.push('Rafters come out ' + fi(rafLen) + ' long. That is longer than 20′ stock. Add a support wall or reduce the span.');
     var limit = MAXSPAN[rsp][rsz];
-    if (span > limit) {
+    if (roofOn && span > limit) {
       var better = ['2x4', '2x6', '2x8', '2x10'].filter(function (s) { return MAXSPAN[rsp][s] >= span; })[0];
       warnings.push(rsz + ' rafters at ' + rsp + '″ are a stretch over ' + fi(span) + '. ' + (better ? 'Try ' + better + ' or closer spacing.' : 'Add a beam or support wall.'));
     }
@@ -491,18 +494,20 @@ tr.sec td { padding-top: 16px; font-family: "Barlow Condensed", sans-serif; font
     });
     if (wallSheets) add('Wall sheathing (optional)', fmt1(wallSqft) + ' sq ft', '4×8 sheet', wallSheets);
 
+    if (roofOn) {
     sec('Roof');
     if (rafStock) add('Rafters', 'cut each to ' + fi(rafLen) + ' plus angle cuts', rsz + ' × ' + rafStock + "′", rafCount);
     add('Rafter blocking', 'full-depth, at both walls, ' + inch(blockLen) + ' pieces', rsz + " × 8′", blockBoards);
     add('Fascia', fmt1(fasciaIn / 12) + ' linear ft', '1x6 or 2x6 × 12′', fasciaBoards);
     add('Roof sheathing', fmt1(roofSqft) + ' sq ft', '4×8 sheet', roofSheets);
+    }
 
     var trs = rows.map(function (r) {
       if (r.sec) return '<tr class="sec"><td colspan="3">' + r.sec + '</td></tr>';
       return '<tr><td>' + r.item + (r.sub ? '<small>' + r.sub + '</small>' : '') + '</td><td>' + r.buy + '</td><td class="q">' + r.qty + '</td></tr>';
     }).join('');
     $('list').innerHTML = '<thead><tr><th>Item</th><th>Buy</th><th class="q">Qty</th></tr></thead><tbody>' + trs + '</tbody>';
-    lastText = 'Framing list — ' + fi(L) + ' × ' + fi(W) + ', ' + fi(H) + ' walls, ' + pitch + ' in 12 roof, ' + inch(ov) + ' overhang\n' + text.join('\n');
+    lastText = 'Framing list — ' + fi(L) + ' × ' + fi(W) + ', ' + fi(H) + ' walls' + (roofOn ? ', ' + pitch + ' in 12 roof, ' + inch(ov) + ' overhang' : ', no roof') + '\n' + text.join('\n');
 
     $('warnings').innerHTML = warnings.map(function (w) { return '<p class="warn">' + w + '</p>'; }).join('');
 
@@ -510,8 +515,8 @@ tr.sec td { padding-top: 16px; font-family: "Barlow Condensed", sans-serif; font
     $('facts').innerHTML =
       '<div class="fact"><b>' + inch(studLen) + '</b><span>Stud length</span></div>' +
       '<div class="fact"><b>' + studsNet + '</b><span>Studs in the walls</span></div>' +
-      '<div class="fact roof"><b>' + fi(rafLen) + '</b><span>Rafter length, ' + angle.toFixed(1) + '° slope</span></div>' +
-      '<div class="fact roof"><b>' + rafCount + '</b><span>Rafters, high edge ' + inch(rise) + ' above low</span></div>';
+      (roofOn ? '<div class="fact roof"><b>' + fi(rafLen) + '</b><span>Rafter length, ' + angle.toFixed(1) + '° slope</span></div>' +
+      '<div class="fact roof"><b>' + rafCount + '</b><span>Rafters, high edge ' + inch(rise) + ' above low</span></div>' : '');
 
     /* ---------- drawing ---------- */
     var WALLNAME = { front: 'Front', back: 'Back', left: 'Left', right: 'Right' };
@@ -537,7 +542,9 @@ tr.sec td { padding-top: 16px; font-family: "Barlow Condensed", sans-serif; font
       var roofFill = ' fill="var(--pencil)" fill-opacity="0.35" stroke="var(--pencil)" stroke-width="0.8"';
       var gapStyle = ' stroke="var(--warn)" stroke-width="0.7" stroke-dasharray="3 2"';
       var slopeAlong = horiz ? !spanIsW : spanIsW;   // rafters run along this wall, so the slope shows in profile
-      if (slopeAlong) {
+      if (!roofOn) {
+        // no roof to draw
+      } else if (slopeAlong) {
         var hiRight = spanIsW ? (wall === 'left' ? hiSide === 'front' : hiSide === 'back') : (wall === 'front' ? hiSide === 'right' : hiSide === 'left');
         var top = function (x) { return H + RD + (hiRight ? x : span - x) * pr; };
         var pts = [[-ov, top(-ov)], [len + ov, top(len + ov)], [len + ov, top(len + ov) - RD], [-ov, top(-ov) - RD]];
@@ -647,19 +654,20 @@ tr.sec td { padding-top: 16px; font-family: "Barlow Condensed", sans-serif; font
           (dropped.length ? '<li>Layout studs displaced by this opening: centers at ' + listIn(dropped) + '.</li>' : '') + '</ul>';
       });
       $('wallnotes').innerHTML = wn;
-      var mm = 6, up = RD + rise;
+      var mm = 6, up = roofOn ? RD + rise : 0;
       $('plan').setAttribute('viewBox', (-ov - mm) + ' ' + (-up - mm) + ' ' + (len + 2 * ov + 2 * mm) + ' ' + (H + up + 2 * mm + 8));
       $('plan').setAttribute('aria-label', WALLNAME[wall] + ' wall elevation seen from outside');
       $('plan').innerHTML = g;
       $('legend').innerHTML = frame
-        ? '<span><i class="sw-stud"></i>Studs, kings, jacks and cripples</span><span><i class="sw-hdr"></i>Header</span><span><i class="sw-roof"></i>Roof</span><span style="color:var(--warn)">Dashed red: extra wall height the sloped roof needs</span>'
-        : '<span><i class="sw-roof"></i>Roof</span><span>Turn on Show framing to see studs and headers</span>';
+        ? '<span><i class="sw-stud"></i>Studs, kings, jacks and cripples</span><span><i class="sw-hdr"></i>Header</span>' + (roofOn ? '<span><i class="sw-roof"></i>Roof</span><span style="color:var(--warn)">Dashed red: extra wall height the sloped roof needs</span>' : '')
+        : (roofOn ? '<span><i class="sw-roof"></i>Roof</span>' : '') + '<span>Turn on Show framing to see studs and headers</span>';
     }
 
     if (view !== 'plan') { drawElevation(view); } else {
     /* ---------- plan view ---------- */
     var m = 6, vx = -ov - m, vy = -ov - m, vw = L + 2 * ov + 2 * m, vh = W + 2 * ov + 2 * m;
     var svg = '';
+    if (roofOn) {
     // rafters
     var rafSvg = '';
     var rafPos = [];
@@ -676,6 +684,7 @@ tr.sec td { padding-top: 16px; font-family: "Barlow Condensed", sans-serif; font
     if (ov >= 6) {
       var hl = { back: [L / 2, -ov / 2 + 1.5, 0], front: [L / 2, W + ov / 2 + 1.5, 0], left: [-ov / 2 + 1.5, W / 2, -90], right: [L + ov / 2 + 1.5, W / 2, 90] }[hiSide];
       svg += '<text x="' + hl[0] + '" y="' + hl[1] + '" font-size="4.5" text-anchor="middle" fill="var(--pencil)" transform="rotate(' + hl[2] + ' ' + hl[0] + ' ' + hl[1] + ')">roof high side</text>';
+    }
     }
     // walls
     svg += '<rect x="0" y="0" width="' + L + '" height="' + W + '" fill="var(--chalk-soft)" stroke="var(--ink)" stroke-width="0.6"/>';
@@ -734,7 +743,7 @@ tr.sec td { padding-top: 16px; font-family: "Barlow Condensed", sans-serif; font
     $('plan').innerHTML = svg;
     $('plan').setAttribute('aria-label', 'Top-down plan showing walls, studs, roof edge and rafters');
     $('wallnotes').innerHTML = '';
-    $('legend').innerHTML = '<span><i class="sw-stud"></i>Wall studs</span><span><i class="sw-roof"></i>Roof edge with overhang</span><span><i class="sw-raft"></i>Rafters</span><span><i class="sw-hdr"></i>Header above opening</span>';
+    $('legend').innerHTML = '<span><i class="sw-stud"></i>Wall studs</span>' + (roofOn ? '<span><i class="sw-roof"></i>Roof edge with overhang</span><span><i class="sw-raft"></i>Rafters</span>' : '') + '<span><i class="sw-hdr"></i>Header above opening</span>';
     }
 
     /* ---------- notes ---------- */
@@ -743,7 +752,7 @@ tr.sec td { padding-top: 16px; font-family: "Barlow Condensed", sans-serif; font
     notes.push('Each opening gets two king studs (full length), two jack studs under the header, a doubled header on edge, and cripples above it (and below the sill on windows) wherever the stud layout lands inside the opening. Openings are measured from the floor, so a door height of 80 means the top of the rough opening is 80″ up. Window height is measured above the sill height.');
     notes.push('Long walls run full length. Short walls fit between them at ' + fi(shortLen) + '.');
     notes.push('Use pressure-treated lumber for the bottom plate on concrete or anything near the ground. Cut the plate out of door openings after the walls are up.');
-    notes.push('Rafters sit on level walls and get a birdsmouth cut. Rafters run ' + fi(rafLen) + ' along the slope, which includes both overhangs.');
+    if (roofOn) notes.push('Rafters sit on level walls and get a birdsmouth cut. Rafters run ' + fi(rafLen) + ' along the slope, which includes both overhangs.');
     notes.push('Header sizes, rafter spans and fasteners depend on local code, snow and wind loads. This is a planning estimate, so confirm with your building department before you cut.');
     $('notes').innerHTML = notes.map(function (n) { return '<li>' + n + '</li>'; }).join('');
   }
