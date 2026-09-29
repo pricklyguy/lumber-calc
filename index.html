@@ -163,11 +163,18 @@ tr.sec td { padding-top: 16px; font-family: "Barlow Condensed", sans-serif; font
 
       <section class="panel" aria-labelledby="h-open">
         <h2 id="h-open">Doors and windows</h2>
-        <p class="hint" style="margin-bottom:10px">Rough opening size, framing to framing. Position is measured from the left end of the wall (top end for side walls) as seen in the plan view.</p>
+        <p class="hint" style="margin-bottom:10px">Enter the size of the door or window itself. The rough opening (the framed hole) is that size plus the allowance below. Position is measured to the left edge of the rough opening, from the left end of the wall (top end for side walls) as seen in the plan view.</p>
         <div id="openings"></div>
         <div class="btnrow">
           <button type="button" id="addDoor">Add door</button>
           <button type="button" id="addWin">Add window</button>
+        </div>
+        <p class="hint" style="margin:16px 0 8px">Rough opening allowance, added to the size you enter. A 36×80 door with 2 and 2 gets a 38×82 opening.</p>
+        <div class="grid2">
+          <div class="field"><label for="dAddW">Door, width</label><div class="inp"><input id="dAddW" type="number" inputmode="decimal" step="any" min="0" value="2"><span class="unit">in</span></div></div>
+          <div class="field"><label for="dAddH">Door, height</label><div class="inp"><input id="dAddH" type="number" inputmode="decimal" step="any" min="0" value="2"><span class="unit">in</span></div></div>
+          <div class="field"><label for="wAddW">Window, width</label><div class="inp"><input id="wAddW" type="number" inputmode="decimal" step="any" min="0" value="0.5"><span class="unit">in</span></div></div>
+          <div class="field"><label for="wAddH">Window, height</label><div class="inp"><input id="wAddH" type="number" inputmode="decimal" step="any" min="0" value="0.5"><span class="unit">in</span></div></div>
         </div>
       </section>
 
@@ -315,9 +322,15 @@ tr.sec td { padding-top: 16px; font-family: "Barlow Condensed", sans-serif; font
     return { lo: clear + 2 * T, hi: len - clear - 2 * T - w };
   }
   function wallLen(wall) { return (wall === 'front' || wall === 'back') ? num('len', 0) : num('wid', 0); }
+  function allow(id) { var v = parseFloat($(id).value); return isFinite(v) ? Math.max(0, v) : 0; }
+  // rough opening (framed hole) for a door or window of the size the user entered
+  function roOf(o) {
+    var d = o.type === 'Door', w = parseFloat(o.w) || 0, h = parseFloat(o.h) || 0;
+    return { w: w > 0 ? w + allow(d ? 'dAddW' : 'wAddW') : 0, h: h > 0 ? h + allow(d ? 'dAddH' : 'wAddH') : 0 };
+  }
   function addOpening(type, w, h, wall) {
     var len = wallLen(wall);
-    openings.push({ type: type, w: w, h: h, wall: wall, sill: type === 'Window' ? 36 : 0, pos: Math.max(0, Math.round((len - w) / 2)) });
+    openings.push({ type: type, w: w, h: h, wall: wall, sill: type === 'Window' ? 36 : 0, pos: Math.max(0, Math.round((len - roOf({ type: type, w: w, h: h }).w) / 2)) });
     renderOpenings(); calc();
   }
 
@@ -330,8 +343,9 @@ tr.sec td { padding-top: 16px; font-family: "Barlow Condensed", sans-serif; font
         '<button type="button" data-rm="' + i + '" aria-label="Remove ' + o.type.toLowerCase() + ' ' + (i + 1) + '">Remove</button></div>' +
         '<label>Wall<select data-i="' + i + '" data-k="wall">' + opts + '</select></label>' +
         '<label>Position from left/top<input type="number" inputmode="decimal" step="any" min="0" data-i="' + i + '" data-k="pos" value="' + o.pos + '"></label>' +
-        '<label>Width<input type="number" inputmode="decimal" step="any" min="1" data-i="' + i + '" data-k="w" value="' + o.w + '"></label>' +
-        '<label>Height<input type="number" inputmode="decimal" step="any" min="1" data-i="' + i + '" data-k="h" value="' + o.h + '"></label>' +
+        '<label>' + o.type + ' width<input type="number" inputmode="decimal" step="any" min="1" data-i="' + i + '" data-k="w" value="' + o.w + '"></label>' +
+        '<label>' + o.type + ' height<input type="number" inputmode="decimal" step="any" min="1" data-i="' + i + '" data-k="h" value="' + o.h + '"></label>' +
+        '<p class="hint" data-ro="' + i + '" style="grid-column:1/-1;margin:0"></p>' +
         (o.type === 'Window' ? '<label>Sill height (floor to bottom of opening)<input type="number" inputmode="decimal" step="any" min="0" data-i="' + i + '" data-k="sill" value="' + o.sill + '"></label>' : '') + '</div>';
     }).join('') : '<p class="hint">None yet.</p>';
   }
@@ -380,8 +394,11 @@ tr.sec td { padding-top: 16px; font-family: "Barlow Condensed", sans-serif; font
     }
     var openArea = 0, sillPieces = [], placed = [];
     openings.forEach(function (o, i) {
-      var w = parseFloat(o.w) || 0, h = parseFloat(o.h) || 0, pos = parseFloat(o.pos) || 0;
-      if (w <= 0) return;
+      var uw = parseFloat(o.w) || 0, uh = parseFloat(o.h) || 0, pos = parseFloat(o.pos) || 0;
+      if (uw <= 0) return;
+      var ro = roOf(o), w = ro.w, h = ro.h;   // everything below works from the rough opening
+      var roNote = document.querySelector('[data-ro="' + i + '"]');
+      if (roNote) roNote.textContent = 'Rough opening ' + inch(w) + ' wide × ' + inch(h) + ' tall';
       var isWin = o.type === 'Window';
       var sill = isWin ? Math.max(0, parseFloat(o.sill) || 0) : 0;
       var len = (o.wall === 'front' || o.wall === 'back') ? L : W;
@@ -398,7 +415,7 @@ tr.sec td { padding-top: 16px; font-family: "Barlow Condensed", sans-serif; font
       }
       if (above < 0) warnings.push(name + ' with a ' + size + ' header needs ' + inch(topRO + hd) + ' of wall and the framed wall has ' + inch(H - 2 * T) + '. Lower it, shorten it, or raise the wall.');
       if (isWin && below < 0) warnings.push(name + ' sill height is too low to fit a sill and bottom plate.');
-      placed.push({ idx: i, type: o.type, wall: o.wall, pos: pos, w: w, h: h, name: name, isWin: isWin, sill: sill, size: size, hd: hd, topRO: topRO, above: above, below: below });
+      placed.push({ idx: i, uw: uw, uh: uh, type: o.type, wall: o.wall, pos: pos, w: w, h: h, name: name, isWin: isWin, sill: sill, size: size, hd: hd, topRO: topRO, above: above, below: below });
       openArea += w * h;
       if (isWin) sillPieces.push(w);
     });
@@ -644,7 +661,7 @@ tr.sec td { padding-top: 16px; font-family: "Barlow Condensed", sans-serif; font
         var a = o.pos, b = o.pos + o.w, cr = crippleAt(o);
         var dropped = wallStuds(wall).filter(function (s0) { return s0 + T > a - 2 * T && s0 < b + 2 * T; }).map(function (s0) { return toView(s0, T); });
         wn += '<h3>' + o.name + '</h3><ul>' +
-          '<li>Rough opening ' + inch(o.w) + ' wide × ' + inch(o.h) + ' tall' + (o.isWin ? ', sill ' + inch(o.sill) + ' above the floor' : '') + ', starting ' + inch(X(a, o.w)) + ' from the left end.</li>' +
+          '<li>Rough opening ' + inch(o.w) + ' wide × ' + inch(o.h) + ' tall, for a ' + inch(o.uw) + ' × ' + inch(o.uh) + (o.isWin ? ' window' : ' door') + (o.isWin ? ', sill ' + inch(o.sill) + ' above the floor' : '') + ', starting ' + inch(X(a, o.w)) + ' from the left end.</li>' +
           '<li>Kings: 2 × ' + inch(studLen) + ' (full length), centers at ' + listIn([toView(a - 2 * T, T), toView(b + T, T)]) + '.</li>' +
           '<li>Jacks: 2 × ' + inch(o.topRO - T) + ', centers at ' + listIn([toView(a - T, T), toView(b, T)]) + '.</li>' +
           '<li>Header: doubled ' + o.size + ', 2 × ' + inch(o.w + 2 * T) + ', bottom ' + inch(o.topRO) + ' above the floor.</li>' +
@@ -827,7 +844,7 @@ tr.sec td { padding-top: 16px; font-family: "Barlow Condensed", sans-serif; font
   });
   plan.addEventListener('pointermove', function (e) {
     if (!drag) return;
-    var o = openings[drag.i], q = svgPt(e), w = parseFloat(o.w) || 0;
+    var o = openings[drag.i], q = svgPt(e), w = roOf(o).w;
     if (view === 'plan') {
       var d = { back: q.y, front: num('wid', 0) - q.y, left: q.x, right: num('len', 0) - q.x };
       var wall = Object.keys(d).sort(function (a, b) { return d[a] - d[b]; })[0];
@@ -837,7 +854,7 @@ tr.sec td { padding-top: 16px; font-family: "Barlow Condensed", sans-serif; font
       var flip = view === 'back' || view === 'right';
       o.pos = clampPos(view, drag.pos + (q.x - drag.x) * (flip ? -1 : 1), w);
       if (o.type === 'Window') {
-        var hd = HD[headerSize(w) || '2x12'], h = parseFloat(o.h) || 0;
+        var hd = HD[headerSize(w) || '2x12'], h = roOf(o).h;
         var maxSill = Math.max(2 * T, num('ht', 96) - 2 * T - hd - h);
         o.sill = Math.round(Math.min(Math.max(drag.sill - (q.y - drag.y), 2 * T), maxSill));
       }
