@@ -307,6 +307,12 @@ tr.sec td { padding-top: 16px; font-family: "Barlow Condensed", sans-serif; font
   };
 
   var WALLS = { front: 'Front (bottom)', back: 'Back (top)', left: 'Left', right: 'Right' };
+  // how far the first king stud must stay from the wall's outer end, allowing for the corner studs
+  function openLimits(wall, w) {
+    var cx = +$('corner').value, len = wallLen(wall);
+    var clear = (wall === 'front' || wall === 'back') ? (cx >= 1 ? D : T) : D + T + (cx >= 2 ? T : 0);
+    return { lo: clear + 2 * T, hi: len - clear - 2 * T - w };
+  }
   function wallLen(wall) { return (wall === 'front' || wall === 'back') ? num('len', 0) : num('wid', 0); }
   function addOpening(type, w, h, wall) {
     var len = wallLen(wall);
@@ -383,8 +389,9 @@ tr.sec td { padding-top: 16px; font-family: "Barlow Condensed", sans-serif; font
       var topRO = sill + h;                        // top of rough opening, measured from the floor
       var above = (H - 2 * T) - (topRO + hd);      // room left above the header, under the top plates
       var below = isWin ? sill - 2 * T : 0;        // window cripple length under the sill
-      if (pos < 2 * T + D || pos + w > len - 2 * T - D) {
-        warnings.push(name + ' does not fit on the ' + wname + '. Keep it between ' + inch(2 * T + D) + ' and ' + inch(len - 2 * T - D - w) + ' from the left/top so the corner and king/jack studs fit.');
+      var lim = openLimits(o.wall, w);
+      if (pos < lim.lo - 0.01 || pos > lim.hi + 0.01) {
+        warnings.push(name + ' does not fit on the ' + wname + '. Keep it between ' + inch(lim.lo) + ' and ' + inch(lim.hi) + ' from the left/top so the corner and king/jack studs fit.');
       }
       if (above < 0) warnings.push(name + ' with a ' + size + ' header needs ' + inch(topRO + hd) + ' of wall and the framed wall has ' + inch(H - 2 * T) + '. Lower it, shorten it, or raise the wall.');
       if (isWin && below < 0) warnings.push(name + ' sill height is too low to fit a sill and bottom plate.');
@@ -554,11 +561,14 @@ tr.sec td { padding-top: 16px; font-family: "Barlow Condensed", sans-serif; font
         for (var yy = 8; yy < H; yy += 8) g += '<line x1="0" x2="' + len + '" y1="' + Y(yy) + '" y2="' + Y(yy) + '" stroke="var(--line)" stroke-width="0.4"/>';
       } else {
         g += box(0, len, 0, H, 'var(--bg)', ink);
-        g += box(0, len, 0, T, 'var(--chalk)', ink);
+        var p0 = horiz ? 0 : D, pl = horiz ? len : len - 2 * D;   // side walls fit between the front and back walls, so their plates stop at the corners
+        g += box(p0, pl, 0, T, 'var(--chalk)', ink);
         here.forEach(function (o) { if (!o.isWin) g += box(o.pos, o.w, 0, T, 'var(--bg)'); });   // plate is cut out of door openings
-        g += box(0, len, H - 2 * T, H, 'var(--chalk)', ink) + '<line x1="0" x2="' + len + '" y1="' + Y(H - T) + '" y2="' + Y(H - T) + '" stroke="var(--ink)" stroke-width="0.3"/>';
-        if (!horiz) g += box(0, D, T, H - 2 * T, 'var(--chalk)', ' opacity="0.3"') + box(len - D, D, T, H - 2 * T, 'var(--chalk)', ' opacity="0.3"');
+        g += box(p0, pl, H - 2 * T, H, 'var(--chalk)', ink) + '<line x1="' + X(p0, pl) + '" x2="' + (X(p0, pl) + pl) + '" y1="' + Y(H - T) + '" y2="' + Y(H - T) + '" stroke="var(--ink)" stroke-width="0.3"/>';
+        if (!horiz) g += box(0, D, 0, H, 'var(--chalk)', ' opacity="0.3"') + box(len - D, D, 0, H, 'var(--chalk)', ' opacity="0.3"');
         wallStuds(wall).forEach(function (s0) { if (!blocked(wall, s0)) g += box(s0, T, T, H - 2 * T, 'var(--chalk)'); });
+        if (cornerX >= 1 && horiz) g += box(D - T, T, T, H - 2 * T, 'var(--chalk)') + box(len - D, T, T, H - 2 * T, 'var(--chalk)');
+        if (cornerX >= 2 && !horiz) g += box(D + T, T, T, H - 2 * T, 'var(--chalk)') + box(len - D - 2 * T, T, T, H - 2 * T, 'var(--chalk)');
         here.forEach(function (o) {
           var a = o.pos, b = o.pos + o.w;
           g += box(a - 2 * T, T, T, H - 2 * T, 'var(--chalk)') + box(b + T, T, T, H - 2 * T, 'var(--chalk)');   // kings
@@ -679,6 +689,12 @@ tr.sec td { padding-top: 16px; font-family: "Barlow Condensed", sans-serif; font
       if (!blocked('left', D + p)) st += '<rect x="0" y="' + (D + p) + '" width="' + D + '" height="' + T + '"/>';
       if (!blocked('right', D + p)) st += '<rect x="' + (L - D) + '" y="' + (D + p) + '" width="' + D + '" height="' + T + '"/>';
     });
+    // corner studs: 2-stud has none, 3-stud adds a second stud on the front/back wall end, 4-stud also doubles the side wall end stud
+    [[0, 0], [1, 0], [0, 1], [1, 1]].forEach(function (c) {
+      function CR(u0, v0, du, dv) { return '<rect x="' + (c[0] ? L - u0 - du : u0) + '" y="' + (c[1] ? W - v0 - dv : v0) + '" width="' + du + '" height="' + dv + '"/>'; }
+      if (cornerX >= 1) st += CR(D - T, 0, T, D);
+      if (cornerX >= 2) st += CR(0, D + T, D, T);
+    });
     svg += '<g fill="var(--chalk)">' + st + '</g>';
 
     // openings: clear the wall band, add king and jack studs, then a door swing or window glass line
@@ -780,7 +796,7 @@ tr.sec td { padding-top: 16px; font-family: "Barlow Condensed", sans-serif; font
     return pt.matrixTransform(plan.getScreenCTM().inverse());
   }
   function clampPos(wall, pos, w) {
-    var lo = 2 * T + D, hi = wallLen(wall) - 2 * T - D - w;
+    var lim = openLimits(wall, w), lo = lim.lo, hi = lim.hi;
     return Math.round(Math.min(Math.max(pos, lo), Math.max(lo, hi)));
   }
   function syncInputs(i) {
