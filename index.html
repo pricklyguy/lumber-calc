@@ -104,6 +104,22 @@ button.primary { background: var(--chalk); border-color: var(--chalk); color: #f
 .wallnotes ul { margin: 0; padding-left: 18px; font-size: 14px; }
 .wallnotes li { margin-bottom: 3px; }
 .wallnotes .hint { margin-top: 12px; }
+.only-print { display: none; }
+@media print {
+  @page { size: landscape; margin: 12mm; }
+  :root, :root:not([data-theme="light"]), :root[data-theme="dark"] {
+    --bg: #FFFFFF; --panel: #FFFFFF; --ink: #000000; --muted: #444444; --line: #BBBBBB;
+    --chalk: #2B5FB8; --chalk-soft: #DCE6F6; --pencil: #C98A0B; --warn: #A5402D; --warn-soft: #F6E3DE;
+  }
+  body { background: #fff; }
+  .wrap > header, .layout > div:first-child, .layout > div:last-child > .panel:not(#plansec),
+  #facts, .viewbar, #viewnote, #h-plan { display: none !important; }
+  .layout { display: block; margin-top: 0; }
+  .panel { border: 0; padding: 0; }
+  .only-print { display: block; font-weight: 600; margin-bottom: 8px; }
+  .plan { border: 0; }
+  .wallnotes { break-inside: avoid; }
+}
 .sw-hdr { width: 18px; height: 8px; border: 1px dashed var(--ink); }
 .sw-raft { width: 18px; height: 0; border-top: 1.5px solid var(--pencil); opacity: .5; vertical-align: 3px !important; }
 table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
@@ -224,7 +240,8 @@ tr.sec td { padding-top: 16px; font-family: "Barlow Condensed", sans-serif; font
     </div>
 
     <div>
-      <section class="panel" aria-labelledby="h-plan">
+      <section class="panel" id="plansec" aria-labelledby="h-plan">
+        <div class="only-print" id="printTitle"></div>
         <h2 id="h-plan">Plan view</h2>
         <div id="facts" class="facts"></div>
         <div class="viewbar">
@@ -236,6 +253,7 @@ tr.sec td { padding-top: 16px; font-family: "Barlow Condensed", sans-serif; font
             <button type="button" data-view="right">Right</button>
           </div>
           <label class="tog" id="frameTog"><input type="checkbox" id="frame" checked> Show framing</label>
+          <button type="button" id="printBtn" style="margin-left:auto">Print this view</button>
         </div>
         <p class="hint" id="viewnote" style="margin-bottom:8px"></p>
         <svg id="plan" class="plan" role="img" aria-label="Drawing of the building"></svg>
@@ -387,16 +405,21 @@ tr.sec td { padding-top: 16px; font-family: "Barlow Condensed", sans-serif; font
     var studLen = H - 3 * T;
     var shortLen = W - 2 * D;
     var cornerExtra = 4 * cornerX;
-    function studPositions(len) {
-      var n = Math.ceil(len / sp) + 1, out = [];
-      for (var j = 0; j < n - 1; j++) out.push(j * sp);
+    // stud starts for a wall of this length: a stud flush at each end, the rest with their CENTERS on the spacing grid (16, 32, 48...)
+    // clear is how far in from each end the corner studs reach, so grid studs that would land on them are left out
+    function studPositions(len, clear) {
+      var n = Math.ceil(len / sp) + 1, out = [0];
+      for (var j = 1; j < n - 1; j++) { var s0 = j * sp - T / 2; if (s0 >= clear && s0 + T <= len - clear) out.push(s0); }
       out.push(len - T);
       return out;
     }
-    // layout stud starts along a wall, measured from that wall's outer corner
+    // layout stud starts along a wall, measured from that wall's outer corner. Each wall is laid out from its left end as seen from outside,
+    // so the back and right walls run from the far corner.
     function wallStuds(wall) {
-      if (wall === 'front' || wall === 'back') return studPositions(L);
-      return studPositions(shortLen).map(function (p) { return D + p; });
+      var horiz = wall === 'front' || wall === 'back', total = horiz ? L : W;
+      var out = horiz ? studPositions(L, cornerX >= 1 ? D : T) : studPositions(shortLen, cornerX >= 2 ? 2 * T : T).map(function (q) { return D + q; });
+      if (wall === 'back' || wall === 'right') out = out.map(function (q) { return total - q - T; }).sort(function (x, y) { return x - y; });
+      return out;
     }
     var openArea = 0, sillPieces = [], placed = [];
     openings.forEach(function (o, i) {
@@ -545,6 +568,7 @@ tr.sec td { padding-top: 16px; font-family: "Barlow Condensed", sans-serif; font
     var WALLNAME = { front: 'Front', back: 'Back', left: 'Left', right: 'Right' };
     $('tabs').querySelectorAll('button').forEach(function (b) { b.setAttribute('aria-pressed', b.dataset.view === view ? 'true' : 'false'); });
     $('frameTog').style.display = view === 'plan' ? 'none' : '';
+    $('printTitle').textContent = 'PGC Framing Calculator. ' + (view === 'plan' ? 'Plan view' : WALLNAME[view] + ' wall, seen from outside') + '. Building ' + fi(L) + ' × ' + fi(W) + ', ' + fi(H) + ' walls, studs ' + sp + '″ on center.';
     $('viewnote').textContent = view === 'plan'
       ? 'Drag a door or window along its wall, or onto another wall. Double-click one to see that wall.'
       : WALLNAME[view] + ' wall seen from outside. Drag an opening sideways to move it, and drag a window up or down to change its sill height.';
@@ -632,7 +656,8 @@ tr.sec td { padding-top: 16px; font-family: "Barlow Condensed", sans-serif; font
       var halo = ' stroke="var(--bg)" stroke-width="1.1" paint-order="stroke" stroke-linejoin="round"';
       function htxt(cx, cy, str, fill, hc) { return '<text x="' + cx + '" y="' + cy + '" font-size="3.4" text-anchor="middle" fill="' + (fill || 'var(--ink)') + '"' + (hc ? halo.replace('var(--bg)', hc) : halo) + '>' + str + '</text>'; }
       function vtxt(cx, cy, str, fill) { return '<text x="' + cx + '" y="' + cy + '" font-size="3.4" text-anchor="middle" fill="' + (fill || 'var(--ink)') + '" transform="rotate(-90 ' + cx + ' ' + cy + ')"' + halo + '>' + str + '</text>'; }
-      var toView = function (s0, w0) { return X(s0, w0) + w0 / 2; };   // center of a member as measured from the left end of this view
+      var base = horiz ? 0 : D;   // side walls are built between the front and back walls, so measure from the end of their plates
+      var toView = function (s0, w0) { return X(s0, w0) + w0 / 2 - base; };   // center of a member measured from the left end of the wall as built
       var listIn = function (vals) { return vals.sort(function (p, q) { return p - q; }).map(inch).join(', '); };
       if (frame) {
         here.forEach(function (o) {
@@ -651,9 +676,9 @@ tr.sec td { padding-top: 16px; font-family: "Barlow Condensed", sans-serif; font
       if (here.length) {
         // dimension chain along the floor: wall end to opening, opening width, opening to opening, opening to wall end
         var iv = here.map(function (o) { return [X(o.pos, o.w), X(o.pos, o.w) + o.w]; }).sort(function (p, q) { return p[0] - q[0]; });
-        var cp = [0];
+        var cp = [base];
         iv.forEach(function (r) { cp.push(r[0], r[1]); });
-        cp.push(len);
+        cp.push(len - base);
         var yd = H + 4;
         g += '<line x1="0" x2="' + len + '" y1="' + yd + '" y2="' + yd + '" stroke="var(--muted)" stroke-width="0.4"/>';
         cp.forEach(function (px) { g += '<line x1="' + px + '" x2="' + px + '" y1="' + (yd - 1.6) + '" y2="' + (yd + 1.6) + '" stroke="var(--muted)" stroke-width="0.4"/>'; });
@@ -661,13 +686,33 @@ tr.sec td { padding-top: 16px; font-family: "Barlow Condensed", sans-serif; font
           if (cp[ci + 1] - cp[ci] > 0.5) g += htxt((cp[ci] + cp[ci + 1]) / 2, yd + 5.4, inch(cp[ci + 1] - cp[ci]), ci % 2 ? 'var(--pencil)' : 'var(--ink)');
         }
       }
-      var wn = '<p class="hint">Only framing that differs from the standard layout is listed. Everything else is a stud cut to ' + inch(studLen) + ' at ' + sp + '″ on center. Measurements run from the left end of the wall as seen in this view.</p>';
+      if (frame) {
+        var seenL = {};
+        var tick = function (s0) {
+          var vxp = X(s0, T) + T / 2, k = Math.round(vxp * 4);
+          if (seenL[k]) return;
+          seenL[k] = 1;
+          g += '<text x="' + vxp + '" y="' + (H + 12) + '" font-size="3" text-anchor="end" fill="var(--muted)" transform="rotate(-90 ' + vxp + ' ' + (H + 12) + ')">' + inch(vxp - base) + '</text>';
+        };
+        wallStuds(wall).forEach(function (s0) { if (!blocked(wall, s0)) tick(s0); });
+        here.forEach(function (o) { tick(o.pos - 2 * T); tick(o.pos + o.w + T); crippleAt(o).forEach(tick); });
+      }
+      var plateLen = horiz ? len : len - 2 * D;
+      var stds = wallStuds(wall).filter(function (s0) { return !blocked(wall, s0); }).map(function (s0) { return toView(s0, T); });
+      var cornerStuds = [];
+      if (cornerX >= 1 && horiz) cornerStuds = [toView(D - T, T), toView(len - D, T)];
+      if (cornerX >= 2 && !horiz) cornerStuds = [toView(D + T, T), toView(len - D - 2 * T, T)];
+      var wn = '<h3>' + WALLNAME[wall] + ' wall layout</h3><ul>' +
+        '<li>Plates: 3 × ' + inch(plateLen) + ' (one bottom plate, two top plates).</li>' +
+        '<li>Studs: ' + stds.length + ' × ' + inch(studLen) + ', centers ' + listIn(stds) + ' from the left end. A stud sits flush at each end and the rest are centered on ' + sp + '″.</li>' +
+        (cornerStuds.length ? '<li>Extra corner studs: 2 × ' + inch(studLen) + ', centers ' + listIn(cornerStuds) + '.</li>' : '') + '</ul>' +
+        '<p class="hint">Everything is measured to stud centers from the left end of the wall as seen in this view' + (horiz ? '' : ', taken at the end of the plates where this wall meets the front or back wall') + '. Below, only framing that differs from the standard layout is listed.</p>';
       if (!here.length) wn += '<p class="hint">No openings on this wall.</p>';
       here.slice().sort(function (p, q) { return X(p.pos, p.w) - X(q.pos, q.w); }).forEach(function (o) {
         var a = o.pos, b = o.pos + o.w, cr = crippleAt(o);
         var dropped = wallStuds(wall).filter(function (s0) { return s0 + T > a - 2 * T && s0 < b + 2 * T; }).map(function (s0) { return toView(s0, T); });
         wn += '<h3>' + o.name + '</h3><ul>' +
-          '<li>Rough opening ' + inch(o.w) + ' wide × ' + inch(o.h) + ' tall, for a ' + inch(o.uw) + ' × ' + inch(o.uh) + (o.isWin ? ' window' : ' door') + (o.isWin ? ', sill ' + inch(o.sill) + ' above the floor' : '') + ', starting ' + inch(X(a, o.w)) + ' from the left end.</li>' +
+          '<li>Rough opening ' + inch(o.w) + ' wide × ' + inch(o.h) + ' tall, for a ' + inch(o.uw) + ' × ' + inch(o.uh) + (o.isWin ? ' window' : ' door') + (o.isWin ? ', sill ' + inch(o.sill) + ' above the floor' : '') + ', starting ' + inch(X(a, o.w) - base) + ' from the left end.</li>' +
           '<li>Kings: 2 × ' + inch(studLen) + ' (full length), centers at ' + listIn([toView(a - 2 * T, T), toView(b + T, T)]) + '.</li>' +
           '<li>Jacks: 2 × ' + inch(o.topRO - T) + ', centers at ' + listIn([toView(a - T, T), toView(b, T)]) + '.</li>' +
           '<li>Header: doubled ' + o.size + ', 2 × ' + inch(o.w + 2 * T) + ', bottom ' + inch(o.topRO) + ' above the floor.</li>' +
@@ -678,11 +723,11 @@ tr.sec td { padding-top: 16px; font-family: "Barlow Condensed", sans-serif; font
       });
       $('wallnotes').innerHTML = wn;
       var mm = 6, up = roofOn ? RD + rise : 0;
-      $('plan').setAttribute('viewBox', (-ov - mm) + ' ' + (-up - mm) + ' ' + (len + 2 * ov + 2 * mm) + ' ' + (H + up + 2 * mm + 8));
+      $('plan').setAttribute('viewBox', (-ov - mm) + ' ' + (-up - mm) + ' ' + (len + 2 * ov + 2 * mm) + ' ' + (H + up + 2 * mm + (frame ? 26 : 8)));
       $('plan').setAttribute('aria-label', WALLNAME[wall] + ' wall elevation seen from outside');
       $('plan').innerHTML = g;
       $('legend').innerHTML = frame
-        ? '<span><i class="sw-stud"></i>Studs, kings, jacks and cripples</span><span><i class="sw-hdr"></i>Header</span>' + (roofOn ? '<span><i class="sw-roof"></i>Roof</span><span style="color:var(--warn)">Dashed red: extra wall height the sloped roof needs</span>' : '')
+        ? '<span><i class="sw-stud"></i>Studs, kings, jacks and cripples</span><span>Numbers under the wall: stud centers from the left end</span><span><i class="sw-hdr"></i>Header</span>' + (roofOn ? '<span><i class="sw-roof"></i>Roof</span><span style="color:var(--warn)">Dashed red: extra wall height the sloped roof needs</span>' : '')
         : (roofOn ? '<span><i class="sw-roof"></i>Roof</span>' : '') + '<span>Turn on Show framing to see studs and headers</span>';
     }
 
@@ -713,14 +758,10 @@ tr.sec td { padding-top: 16px; font-family: "Barlow Condensed", sans-serif; font
     svg += '<rect x="0" y="0" width="' + L + '" height="' + W + '" fill="var(--chalk-soft)" stroke="var(--ink)" stroke-width="0.6"/>';
     svg += '<rect x="' + D + '" y="' + D + '" width="' + (L - 2 * D) + '" height="' + (W - 2 * D) + '" fill="var(--bg)" stroke="var(--ink)" stroke-width="0.4"/>';
     var st = '';
-    studPositions(L).forEach(function (p) {
-      if (!blocked('back', p)) st += '<rect x="' + p + '" y="0" width="' + T + '" height="' + D + '"/>';
-      if (!blocked('front', p)) st += '<rect x="' + p + '" y="' + (W - D) + '" width="' + T + '" height="' + D + '"/>';
-    });
-    studPositions(shortLen).forEach(function (p) {
-      if (!blocked('left', D + p)) st += '<rect x="0" y="' + (D + p) + '" width="' + D + '" height="' + T + '"/>';
-      if (!blocked('right', D + p)) st += '<rect x="' + (L - D) + '" y="' + (D + p) + '" width="' + D + '" height="' + T + '"/>';
-    });
+    wallStuds('back').forEach(function (p) { if (!blocked('back', p)) st += '<rect x="' + p + '" y="0" width="' + T + '" height="' + D + '"/>'; });
+    wallStuds('front').forEach(function (p) { if (!blocked('front', p)) st += '<rect x="' + p + '" y="' + (W - D) + '" width="' + T + '" height="' + D + '"/>'; });
+    wallStuds('left').forEach(function (p) { if (!blocked('left', p)) st += '<rect x="0" y="' + p + '" width="' + D + '" height="' + T + '"/>'; });
+    wallStuds('right').forEach(function (p) { if (!blocked('right', p)) st += '<rect x="' + (L - D) + '" y="' + p + '" width="' + D + '" height="' + T + '"/>'; });
     // corner studs: 2-stud has none, 3-stud adds a second stud on the front/back wall end, 4-stud also doubles the side wall end stud
     [[0, 0], [1, 0], [0, 1], [1, 1]].forEach(function (c) {
       function CR(u0, v0, du, dv) { return '<rect x="' + (c[0] ? L - u0 - du : u0) + '" y="' + (c[1] ? W - v0 - dv : v0) + '" width="' + du + '" height="' + dv + '"/>'; }
@@ -818,6 +859,7 @@ tr.sec td { padding-top: 16px; font-family: "Barlow Condensed", sans-serif; font
   });
 
   /* ---------- view tabs and drag ---------- */
+  $('printBtn').addEventListener('click', function () { window.print(); });
   $('tabs').addEventListener('click', function (e) {
     var v = e.target.dataset && e.target.dataset.view;
     if (v) { view = v; calc(); }
