@@ -1,0 +1,929 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>PGC Kiosk Lift Calculator</title>
+<link rel="icon" type="image/png" href="images/prickly_guy_200px.png">
+<link rel="apple-touch-icon" href="images/prickly_guy_200px.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600&family=Barlow+Condensed:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #F1F3EE;
+  --panel: #FFFFFF;
+  --ink: #1E2A2E;
+  --muted: #5D6B6E;
+  --line: #D3D9D2;
+  --chalk: #2B5FB8;
+  --chalk-soft: #DCE6F6;
+  --pencil: #C98A0B;
+  --warn: #A5402D;
+  --warn-soft: #F6E3DE;
+  box-sizing: border-box;
+  padding-top: env(safe-area-inset-top, 0px);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #151B1E; --panel: #1D2529; --ink: #E6ECE8; --muted: #98A6A6; --line: #303B3F;
+    --chalk: #7FA6E8; --chalk-soft: #22344F; --pencil: #E9B84A; --warn: #E3826B; --warn-soft: #3A2622;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #151B1E; --panel: #1D2529; --ink: #E6ECE8; --muted: #98A6A6; --line: #303B3F;
+  --chalk: #7FA6E8; --chalk-soft: #22344F; --pencil: #E9B84A; --warn: #E3826B; --warn-soft: #3A2622;
+}
+html { scroll-padding-top: env(safe-area-inset-top, 0px); }
+* { box-sizing: border-box; }
+body {
+  margin: 0; background: var(--bg); color: var(--ink);
+  font-family: "Barlow", system-ui, -apple-system, "Segoe UI", sans-serif;
+  font-size: 16px; line-height: 1.45;
+}
+.wrap { max-width: 1100px; margin: 0 auto; padding: 20px 16px 48px; }
+header h1 {
+  font-family: "Barlow Condensed", "Arial Narrow", sans-serif;
+  font-weight: 700; font-size: 40px; line-height: 1; margin: 0 0 6px; letter-spacing: 0.01em;
+}
+header p { margin: 0; color: var(--muted); }
+.brand { display: flex; align-items: center; gap: 14px; }
+.logo { width: 72px; height: 72px; flex: none; border-radius: 50%; }
+@media (max-width: 480px) { .logo { width: 56px; height: 56px; } header h1 { font-size: 32px; } }
+.layout { display: grid; gap: 20px; margin-top: 22px; }
+@media (min-width: 900px) { .layout { grid-template-columns: 360px 1fr; align-items: start; } }
+.panel { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 16px; }
+.panel + .panel { margin-top: 16px; }
+h2 {
+  font-family: "Barlow Condensed", "Arial Narrow", sans-serif;
+  font-weight: 600; font-size: 22px; margin: 0 0 12px; letter-spacing: 0.01em;
+}
+.grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.field { display: flex; flex-direction: column; gap: 4px; }
+.field.full { grid-column: 1 / -1; }
+label, .lbl { font-weight: 500; font-size: 14px; }
+.inp { position: relative; }
+input, select {
+  width: 100%; font: inherit; color: var(--ink); background: var(--bg);
+  border: 1px solid var(--line); border-radius: 6px; padding: 9px 10px; min-height: 42px;
+}
+input[type=number] { padding-right: 34px; }
+.unit { position: absolute; right: 10px; top: 50%; transform: translateY(-50%); color: var(--muted); font-size: 14px; pointer-events: none; }
+input:focus-visible, select:focus-visible, button:focus-visible { outline: 3px solid var(--chalk); outline-offset: 1px; }
+.hint { color: var(--muted); font-size: 13px; margin: 0; }
+.opening { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; align-items: end; margin-bottom: 12px; padding-bottom: 12px; border-bottom: 1px solid var(--line); }
+.opening .ohead { grid-column: 1 / -1; display: flex; justify-content: space-between; align-items: center; }
+.opening .otype { font-weight: 600; }
+.opening label { display: flex; flex-direction: column; gap: 3px; font-size: 13px; color: var(--muted); }
+button {
+  font: inherit; cursor: pointer; border-radius: 6px; min-height: 42px; padding: 8px 12px;
+  border: 1px solid var(--line); background: var(--bg); color: var(--ink);
+}
+button.primary { background: var(--chalk); border-color: var(--chalk); color: #fff; font-weight: 600; }
+:root[data-theme="dark"] button.primary { color: #10203A; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) button.primary { color: #10203A; } }
+.btnrow { display: flex; gap: 8px; margin-top: 4px; }
+.facts { display: grid; gap: 10px; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); margin-bottom: 16px; }
+.fact { border-left: 4px solid var(--chalk); padding: 2px 0 2px 10px; }
+.fact.roof { border-left-color: var(--pencil); }
+.fact b { display: block; font-family: "Barlow Condensed", sans-serif; font-size: 26px; font-weight: 600; line-height: 1.1; }
+.fact span { color: var(--muted); font-size: 13px; }
+.plan { width: 100%; height: auto; display: block; background: var(--bg); border-radius: 8px; border: 1px solid var(--line); }
+.legend { display: flex; flex-wrap: wrap; gap: 6px 16px; margin: 10px 0 0; font-size: 13px; color: var(--muted); }
+.legend i { display: inline-block; vertical-align: -2px; margin-right: 5px; }
+.sw-stud { width: 8px; height: 12px; background: var(--chalk); }
+.sw-roof { width: 18px; height: 0; border-top: 2px dashed var(--pencil); vertical-align: 3px !important; }
+.viewbar { display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: center; margin-bottom: 6px; }
+.tabs { display: flex; gap: 4px; flex-wrap: wrap; }
+.tabs button { min-height: 36px; padding: 4px 12px; }
+.tabs button[aria-pressed=true] { background: var(--chalk); border-color: var(--chalk); color: #fff; font-weight: 600; }
+:root[data-theme="dark"] .tabs button[aria-pressed=true] { color: #10203A; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .tabs button[aria-pressed=true] { color: #10203A; } }
+.tog { display: flex; align-items: center; gap: 6px; font-weight: 400; }
+.tog input { width: auto; min-height: 0; }
+.wallnotes h3 { font-family: "Barlow Condensed", sans-serif; font-weight: 600; font-size: 18px; margin: 14px 0 4px; }
+.wallnotes ul { margin: 0; padding-left: 18px; font-size: 14px; }
+.wallnotes li { margin-bottom: 3px; }
+.wallnotes .hint { margin-top: 12px; }
+.only-print { display: none; }
+#packet { display: none; }
+.pk-title { font-family: "Barlow Condensed", "Arial Narrow", sans-serif; font-weight: 700; font-size: 26px; margin: 0 0 8px; }
+.pk-head { display: flex; align-items: center; gap: 12px; margin-bottom: 10px; }
+.pk-head img { width: 56px; height: 56px; border-radius: 50%; }
+.pk-sum { margin-bottom: 14px; }
+.pk-sum td, .pk-sum th { font-size: 14px; padding: 4px 8px 4px 0; }
+.pk-sum td:first-child { color: var(--muted); white-space: nowrap; width: 1%; }
+.pk-h3 { font-family: "Barlow Condensed", "Arial Narrow", sans-serif; font-weight: 600; font-size: 20px; margin: 14px 0 4px; }
+@media print {
+  @page { margin: 12mm; }
+  :root, :root:not([data-theme="light"]), :root[data-theme="dark"] {
+    --bg: #FFFFFF; --panel: #FFFFFF; --ink: #000000; --muted: #444444; --line: #BBBBBB;
+    --chalk: #2B5FB8; --chalk-soft: #DCE6F6; --pencil: #C98A0B; --warn: #A5402D; --warn-soft: #F6E3DE;
+  }
+  body { background: #fff; }
+  .wrap > header, .layout > div:first-child, .layout > div:last-child > .panel:not(#plansec),
+  #facts, .viewbar, #viewnote, #h-plan { display: none !important; }
+  .layout { display: block; margin-top: 0; }
+  .panel { border: 0; padding: 0; }
+  .only-print { display: block; font-weight: 600; margin-bottom: 8px; }
+  .plan { border: 0; }
+  .wallnotes { break-inside: avoid; }
+  body.packet .wrap { display: none !important; }
+  body.packet #packet { display: block; }
+  .pk-page { break-after: page; }
+  .pk-page:last-child { break-after: auto; }
+  .pk-page .plan { width: 100%; height: auto; max-height: 165mm; border: 0; }
+  .plan { max-height: 175mm; }
+  .pk-page tr { break-inside: avoid; }
+  .pk-page .legend { margin: 4px 0 0; }
+}
+.sw-hdr { width: 18px; height: 8px; border: 1px dashed var(--ink); }
+.sw-raft { width: 18px; height: 0; border-top: 1.5px solid var(--pencil); opacity: .5; vertical-align: 3px !important; }
+table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+th { text-align: left; font-weight: 500; font-size: 13px; color: var(--muted); border-bottom: 1px solid var(--line); padding: 6px 6px 6px 0; }
+td { padding: 9px 6px 9px 0; border-bottom: 1px solid var(--line); vertical-align: top; }
+td.q, th.q { text-align: right; padding-right: 0; white-space: nowrap; }
+td.q { font-family: "Barlow Condensed", sans-serif; font-size: 22px; font-weight: 600; line-height: 1.1; }
+td small { display: block; color: var(--muted); font-size: 13px; }
+tr.sec td { padding-top: 16px; font-family: "Barlow Condensed", sans-serif; font-weight: 600; font-size: 17px; border-bottom: 2px solid var(--chalk); color: var(--chalk); }
+.warn { background: var(--warn-soft); color: var(--warn); border-radius: 8px; padding: 10px 12px; margin: 0 0 12px; font-size: 14px; }
+.notes { margin: 0; padding-left: 18px; color: var(--muted); font-size: 14px; }
+.notes li { margin-bottom: 6px; }
+.tablewrap { overflow-x: auto; }
+.results-head { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-bottom: 8px; }
+.results-head h2 { margin: 0; }
+.status { font-size: 13px; color: var(--muted); min-height: 1.2em; margin: 8px 0 0; }
+.sw-box { width: 14px; height: 12px; background: var(--pencil); opacity: .45; }
+.sw-ovl { width: 14px; height: 12px; background: var(--warn); opacity: .25; }
+.sw-post { width: 8px; height: 12px; background: var(--warn); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="brand">
+    <img class="logo" src="images/prickly_guy_200px.png" alt="Prickly Guy Creations logo" width="72" height="72">
+    <div>
+      <h1>PGC Kiosk Lift Calculator</h1>
+      <p>A framed base with a plywood equipment box and peaked roof that lifts out of it. All measurements in inches.</p>
+    </div>
+  </header>
+
+  <div class="layout">
+    <div>
+      <section class="panel" aria-labelledby="h-walls">
+        <h2 id="h-walls">Lower walls (fixed)</h2>
+        <div class="grid2">
+          <div class="field">
+            <label for="len">Length</label>
+            <div class="inp"><input id="len" type="number" inputmode="decimal" step="any" min="1" value="40"><span class="unit">in</span></div>
+            <p class="hint" id="h_len"></p>
+          </div>
+          <div class="field">
+            <label for="wid">Width</label>
+            <div class="inp"><input id="wid" type="number" inputmode="decimal" step="any" min="1" value="24"><span class="unit">in</span></div>
+            <p class="hint" id="h_wid"></p>
+          </div>
+          <div class="field">
+            <label for="hl">Lower wall height (split)</label>
+            <div class="inp"><input id="hl" type="number" inputmode="decimal" step="any" min="24" value="40"><span class="unit">in</span></div>
+            <p class="hint" id="h_hl"></p>
+          </div>
+          <div class="field">
+            <label for="sp">Stud spacing</label>
+            <select id="sp"><option value="16">16″ on center</option><option value="24" selected>24″ on center</option></select>
+          </div>
+          <div class="field full">
+            <label for="tp">Top plates</label>
+            <select id="tp"><option value="2" selected>Doubled top plate (3 plates in all)</option><option value="1">Single top plate (2 plates in all)</option></select>
+          </div>
+          <div class="field full">
+            <label for="corner">Corners</label>
+            <select id="corner">
+              <option value="1">3-stud corner (1 extra stud each)</option>
+              <option value="0" selected>2-stud corner (no extras)</option>
+              <option value="2">4-stud corner (2 extra each)</option>
+            </select>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel" aria-labelledby="h-lift">
+        <h2 id="h-lift">Upper box and lift</h2>
+        <div class="grid2">
+          <div class="field">
+            <label for="ht">Raised wall height</label>
+            <div class="inp"><input id="ht" type="number" inputmode="decimal" step="any" min="24" value="72"><span class="unit">in</span></div>
+            <p class="hint" id="h_ht"></p>
+          </div>
+          <div class="field">
+            <label for="ovr">Overlap when raised</label>
+            <div class="inp"><input id="ovr" type="number" inputmode="decimal" step="any" min="0" value="8"><span class="unit">in</span></div>
+            <p class="hint">How much of the box stays inside the lower walls.</p>
+          </div>
+          <div class="field">
+            <label for="ply">Plywood thickness</label>
+            <div class="inp"><input id="ply" type="number" inputmode="decimal" step="any" min="0.25" value="0.75"><span class="unit">in</span></div>
+          </div>
+          <div class="field">
+            <label for="clr">Slide clearance, per side</label>
+            <div class="inp"><input id="clr" type="number" inputmode="decimal" step="any" min="0" value="0.5"><span class="unit">in</span></div>
+          </div>
+          <div class="field">
+            <label for="wt">Moving weight (box, gear, roof)</label>
+            <div class="inp"><input id="wt" type="number" inputmode="decimal" step="any" min="0" value="150"><span class="unit">lb</span></div>
+          </div>
+          <div class="field">
+            <label for="guide">Guides</label>
+            <select id="guide"><option value="rollers" selected>Rollers at the base of each box wall</option><option value="slides">Heavy drawer slides</option><option value="trail">T-rail with glide blocks</option></select>
+          </div>
+          <div class="field full">
+            <label for="lift">Lift</label>
+            <select id="lift"><option value="tvlift" selected>TV lift (column, arms to the box deck)</option><option value="winch">Cable winch</option><option value="actuator">Linear actuator</option></select>
+          </div>
+          <div class="field tvf">
+            <label for="lfr">Lift height, retracted</label>
+            <div class="inp"><input id="lfr" type="number" inputmode="decimal" step="any" min="1" value="38"><span class="unit">in</span></div>
+          </div>
+          <div class="field tvf">
+            <label for="lfs">Lift stroke, maximum</label>
+            <div class="inp"><input id="lfs" type="number" inputmode="decimal" step="any" min="1" value="34"><span class="unit">in</span></div>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel" aria-labelledby="h-roof">
+        <h2 id="h-roof">Roof (peaked, spans the long side)</h2>
+        <div class="grid2">
+          <div class="field">
+            <label for="rise">Peak rise above the walls</label>
+            <div class="inp"><input id="rise" type="number" inputmode="decimal" step="any" min="0.5" value="9"><span class="unit">in</span></div>
+            <p class="hint" id="h_rise"></p>
+          </div>
+          <div class="field">
+            <label for="rsz">Rafter size</label>
+            <select id="rsz"><option value="2x4" selected>2x4</option><option value="2x6">2x6</option><option value="2x8">2x8</option></select>
+          </div>
+          <div class="field">
+            <label for="ovl">Overhang, past the long walls</label>
+            <div class="inp"><input id="ovl" type="number" inputmode="decimal" step="any" min="0" value="6"><span class="unit">in</span></div>
+          </div>
+          <div class="field">
+            <label for="ovs">Overhang, past the short walls</label>
+            <div class="inp"><input id="ovs" type="number" inputmode="decimal" step="any" min="0" value="8"><span class="unit">in</span></div>
+          </div>
+          <div class="field">
+            <label for="rsp">Rafter spacing</label>
+            <select id="rsp"><option value="16">16″ on center</option><option value="24" selected>24″ on center</option></select>
+          </div>
+          <div class="field">
+            <label for="waste">Waste allowance</label>
+            <div class="inp"><input id="waste" type="number" inputmode="decimal" step="any" min="0" value="10"><span class="unit">%</span></div>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <div>
+      <section class="panel" id="plansec" aria-labelledby="h-plan">
+        <div class="only-print" id="printTitle"></div>
+        <h2 id="h-plan">Drawings</h2>
+        <div id="facts" class="facts"></div>
+        <div class="viewbar">
+          <div class="tabs" id="tabs" role="group" aria-label="View">
+            <button type="button" data-view="front">Front</button>
+            <button type="button" data-view="side">Side</button>
+            <button type="button" data-view="plan">Plan</button>
+            <button type="button" data-view="walls">Lower walls</button>
+            <button type="button" data-view="box">Upper box</button>
+            <button type="button" data-view="roof">Roof</button>
+          </div>
+          <button type="button" id="printBtn" style="margin-left:auto">Print this view</button>
+          <button type="button" id="printAllBtn">Print whole project</button>
+        </div>
+        <p class="hint" id="viewnote" style="margin-bottom:8px"></p>
+        <svg id="plan" class="plan" role="img" aria-label="Drawing of the kiosk"></svg>
+        <div class="legend" id="legend"></div>
+        <div class="wallnotes" id="wallnotes"></div>
+      </section>
+
+      <section class="panel" aria-labelledby="h-list">
+        <div class="results-head">
+          <h2 id="h-list">Shopping list</h2>
+          <button type="button" class="primary" id="copy">Copy list</button>
+        </div>
+        <div id="warnings"></div>
+        <div class="tablewrap"><table id="list"></table></div>
+        <p class="status" id="status" role="status"></p>
+      </section>
+
+      <section class="panel" aria-labelledby="h-notes">
+        <h2 id="h-notes">Before you build</h2>
+        <ul class="notes" id="notes"></ul>
+      </section>
+    </div>
+  </div>
+</div>
+
+<div id="packet"></div>
+
+<script>
+(function () {
+  var $ = function (id) { return document.getElementById(id); };
+  var D = 3.5, T = 1.5;                       // actual 2x4 face and thickness, inches
+  var STOCK = [8, 10, 12, 14, 16, 18, 20];    // stock lengths, feet
+  var view = 'front';
+  var lastText = '';
+  var MAXSPAN = {
+    16: { '2x4': 78, '2x6': 120, '2x8': 156 },
+    24: { '2x4': 66, '2x6': 102, '2x8': 132 }
+  };
+  var VIEWNAME = { front: 'Front section, lowered and raised', side: 'Side section, lowered and raised', plan: 'Plan view, seen from above', walls: 'Lower wall framing', box: 'Upper box panels', roof: 'Roof layout, seen from above' };
+
+  function num(id, def) { var v = parseFloat($(id).value); return isFinite(v) ? v : def; }
+  function fi(inches) {
+    var total = Math.round(inches * 8) / 8;
+    var ft = Math.floor(total / 12);
+    var rem = total - ft * 12;
+    var whole = Math.floor(rem);
+    var f = Math.round((rem - whole) * 8);
+    var fr = ['', '⅛', '¼', '⅜', '½', '⅝', '¾', '⅞'][f] || '';
+    var inch = (whole ? String(whole) : '') + fr;
+    if (!inch) inch = '0';
+    return ft ? ft + "′ " + inch + "″" : inch + "″";
+  }
+  function inch(v) {
+    var r = Math.round(v * 8) / 8;
+    var whole = Math.floor(r), f = Math.round((r - whole) * 8);
+    var fr = ['', '⅛', '¼', '⅜', '½', '⅝', '¾', '⅞'][f] || '';
+    return (whole ? whole : (fr ? '' : '0')) + fr + '″';
+  }
+  function fmt1(v) { return (Math.round(v * 10) / 10).toString(); }
+  function pack(pieces) {
+    var boards = [], tally = {};
+    pieces.slice().sort(function (a, b) { return b - a; }).forEach(function (p) {
+      var parts = [];
+      while (p > 240) { parts.push(240); p -= 240; }
+      parts.push(p);
+      parts.forEach(function (q) {
+        var b = boards.filter(function (x) { return x.rem >= q; })[0];
+        if (b) { b.rem -= q; }
+        else {
+          var s = STOCK.filter(function (s) { return s * 12 >= q; })[0] || 20;
+          boards.push({ stock: s, rem: s * 12 - q });
+        }
+      });
+    });
+    boards.forEach(function (b) { tally[b.stock] = (tally[b.stock] || 0) + 1; });
+    return tally;
+  }
+  function stockFor(inches) { return STOCK.filter(function (s) { return s * 12 >= inches; })[0] || null; }
+  function byNum(a, b) { return a - b; }
+
+  function calc() {
+    var Lin = num('len', 0), Win = num('wid', 0);
+    var P = Math.max(Lin, Win), Q = Math.min(Lin, Win);       // P is the long side, Q the short side
+    var HL = num('hl', 40), HT = num('ht', 72), OV = Math.max(0, num('ovr', 8));
+    var tx = num('ply', 0.75), cl = Math.max(0, num('clr', 0.5));
+    var sp = +$('sp').value, cornerX = +$('corner').value;
+    var rise = Math.max(0, num('rise', 9)), ovLg = Math.max(0, num('ovl', 6)), ovSh = Math.max(0, num('ovs', 8));
+    var rsz = $('rsz').value, rsp = +$('rsp').value, waste = Math.max(0, num('waste', 10)) / 100;
+    var weight = Math.max(0, num('wt', 150)), lift = $('lift').value, guide = $('guide').value;
+    var topPlates = +$('tp').value, TP = topPlates * T, plateN = 1 + topPlates;
+    var tv = lift === 'tvlift', lfr = num('lfr', 38), lfs = num('lfs', 34);
+    document.querySelectorAll('.tvf').forEach(function (el) { el.style.display = tv ? '' : 'none'; });
+
+    $('h_len').textContent = Lin > 0 ? fi(Lin) : '';
+    $('h_wid').textContent = Win > 0 ? fi(Win) : '';
+    $('h_hl').textContent = HL > 0 ? fi(HL) : '';
+    $('h_ht').textContent = HT > 0 ? fi(HT) + ' to the roof seat' : '';
+
+    if (!(P > 2 * D + 12) || !(Q > 2 * D + 12) || !(HL > 3 * T + 12) || !(HT > HL) || !(tx > 0) || !(rise > 0)) {
+      $('list').innerHTML = ''; $('facts').innerHTML = ''; $('plan').innerHTML = ''; $('wallnotes').innerHTML = ''; $('legend').innerHTML = ''; $('notes').innerHTML = '';
+      $('warnings').innerHTML = '<p class="warn">' + (HT > 0 && HL > 0 && HT <= HL ? 'The raised wall height has to be taller than the lower wall height.' : 'Enter a length, width, lower wall height, raised height and peak rise to see the list.') + '</p>';
+      lastText = '';
+      return;
+    }
+
+    var warnings = [], rows = [], text = [];
+
+    /* ---------- lower frame ---------- */
+    var studLen = HL - T - TP;
+    var shortLen = Q - 2 * D;
+    var cornerExtra = 4 * cornerX;
+    var postsN = 8;   // slides and rails get a doubled stud at the center of each wall, rollers a single stud at each quarter point
+    var rollers = guide === 'rollers', postW = rollers ? T : 2 * T;
+    function postAt(len) { return rollers ? [len / 4, 3 * len / 4] : [len / 2]; }
+    // stud starts for a wall of this length: a stud flush at each end, the rest with their CENTERS on the spacing grid
+    function studPositions(len, clear, step) {
+      step = step || sp;
+      var n = Math.ceil(len / step) + 1, out = [0];
+      for (var j = 1; j < n - 1; j++) { var s0 = j * step - T / 2; if (s0 >= clear && s0 + T <= len - Math.max(clear, T)) out.push(s0); }
+      out.push(len - T);
+      return out;
+    }
+    // stud starts along a wall, measured from the wall's outer corner as seen from outside
+    function wallStuds(wall) {
+      var horiz = wall === 'front' || wall === 'back', total = horiz ? P : Q;
+      var out = horiz ? studPositions(P, cornerX >= 1 ? D : T) : studPositions(shortLen, cornerX >= 2 ? 2 * T : T).map(function (q) { return D + q; });
+      if (wall === 'back' || wall === 'right') out = out.map(function (q) { return total - q - T; }).sort(byNum);
+      return out;
+    }
+    var layoutStuds = 0;
+    ['front', 'back', 'left', 'right'].forEach(function (wl) { layoutStuds += wallStuds(wl).length; });
+    var studsNet = layoutStuds + cornerExtra + postsN;
+    var studPieces = []; for (var si = 0; si < studsNet; si++) studPieces.push(studLen);
+    var studTally = pack(studPieces);
+    var platePieces = [];
+    for (var i = 0; i < 2; i++) for (var k = 0; k < plateN; k++) { platePieces.push(P); platePieces.push(shortLen); }
+    var plateTally = pack(platePieces);
+
+    /* ---------- upper box ---------- */
+    var travel = HT - HL, boxH = travel + OV;
+    var iL = P - 2 * D, iW = Q - 2 * D;                    // clear inside the lower walls
+    var bL = iL - 2 * cl, bW = iW - 2 * cl;                // upper box, outside
+    var nL = bL - 2 * tx, nW = bW - 2 * tx, nH = boxH - (tv ? 1 : 2) * tx;   // equipment bay, inside (a TV lift hangs the box from its deck, so there is no floor)
+    var panelH = nH, restH = HL - boxH;
+    if (!(bL > 6) || !(bW > 6) || !(nL > 2) || !(nW > 2) || !(nH > 2)) {
+      $('list').innerHTML = ''; $('facts').innerHTML = ''; $('plan').innerHTML = ''; $('wallnotes').innerHTML = ''; $('legend').innerHTML = ''; $('notes').innerHTML = '';
+      $('warnings').innerHTML = '<p class="warn">The upper box does not fit inside the lower walls with these numbers. Check the plywood thickness and slide clearance.</p>';
+      lastText = '';
+      return;
+    }
+    if (boxH > HL + 0.01) warnings.push('The upper box is ' + inch(boxH) + ' tall (travel ' + inch(travel) + ' plus ' + inch(OV) + ' overlap), but the lower walls are only ' + inch(HL) + '. It cannot drop fully inside. Reduce the overlap, raise the split, or lower the raised height.');
+    if (nW < 12) warnings.push('The equipment bay is only ' + inch(nW) + ' deep front to back. Check your gear fits.');
+    if (topPlates === 1) warnings.push('Single top plate: the corners are not tied by an overlapping second plate, and the roof lands on a plate that spans between studs. Skin the lower walls with plywood (it is on the list), strap the corner plates, and put blocking under every rafter that lands between studs.');
+    var cleatLong = nL - 2 * T, cleatShort = nW - 2 * T;
+    var plyPieces = [
+      { n: 2, w: bL, h: panelH, name: 'Long panels' },
+      { n: 2, w: nW, h: panelH, name: 'Short panels' },
+      { n: 1, w: bL, h: bW, name: 'Top deck' },
+      { n: 1, w: P, h: Q, name: 'Base' }
+    ];
+    if (!tv) plyPieces.push({ n: 1, w: bL, h: bW, name: 'Floor' });
+    var plyArea = plyPieces.reduce(function (a, p) { return a + p.n * p.w * p.h; }, 0) / 144;
+    var plySheets = Math.ceil(plyArea * (1 + waste) / 32);
+    var cleatPieces = [];
+    for (var c1 = 0; c1 < 4; c1++) cleatPieces.push(panelH);
+    for (var c2 = 0; c2 < 4; c2++) { cleatPieces.push(cleatLong); cleatPieces.push(cleatShort); }
+    var cleatTally = pack(cleatPieces);
+    var rackU = Math.floor(nH / 1.75);
+    if (tv && lfs < travel - 0.01) warnings.push('The lift only travels ' + inch(lfs) + ' but the roof needs to rise ' + inch(travel) + '. Lower the raised height or get a longer lift.');
+    if (tv && lfr > nH + 0.01) warnings.push('The lift is ' + inch(lfr) + ' tall retracted, but the box is only ' + inch(nH) + ' tall inside. Make the box taller or use a shorter lift.');
+    var slideOverlap = panelH - travel;   // how much of a slide as long as the box panel stays engaged when fully raised
+    if (!rollers && slideOverlap < 6) warnings.push('A slide as long as the box panel (' + inch(panelH) + ') only keeps ' + inch(Math.max(0, slideOverlap)) + ' of itself engaged when raised. Use longer slides or less travel, or the box will rack.');
+
+    /* ---------- roof ---------- */
+    var span = P, along = Q;                                  // rafters span the long side and rest on the short walls
+    var alongTot = along + 2 * ovLg;
+    var pr = rise / (span / 2), pitch = pr * 12;
+    var slopeF = Math.sqrt(1 + pr * pr);
+    var halfRun = span / 2 + ovSh;
+    var rafPlane = halfRun * slopeF;
+    var rafLen = rafPlane - (T / 2) * slopeF;
+    var rafStock = stockFor(rafLen);
+    var rafStarts = studPositions(alongTot, 0, rsp);
+    var rafPerSide = rafStarts.length, rafCount = 2 * rafPerSide;
+    var RD = { '2x4': 3.5, '2x6': 5.5, '2x8': 7.25 }[rsz];
+    var ridgeSize = { '2x4': '2x6', '2x6': '2x8', '2x8': '2x10' }[rsz];
+    var angle = Math.atan(pr) * 180 / Math.PI;
+    if (!rafStock) warnings.push('Rafters come out ' + fi(rafLen) + ' long. That is longer than 20′ stock. Reduce the span or the overhang.');
+    if (span / 2 > MAXSPAN[rsp][rsz]) warnings.push(rsz + ' rafters at ' + rsp + '″ are a stretch over ' + fi(span / 2) + '. Try a bigger rafter or closer spacing.');
+    var blockLen = rsp - T;
+    var perBoard = Math.max(1, Math.floor(96 / blockLen));
+    var blockPieces = 2 * (rafPerSide - 1);
+    var blockBoards = Math.ceil(blockPieces / perBoard);
+    var fasciaIn = 2 * alongTot + 4 * rafPlane;
+    var fasciaBoards = Math.ceil(fasciaIn * (1 + waste) / 144);
+    var roofSqft = 2 * alongTot * rafPlane / 144;
+    var roofSheets = Math.ceil(roofSqft * (1 + waste) / 32);
+    var ridgeTally = pack([alongTot]);
+    var tiePieces = []; for (var ti = 0; ti < rafPerSide; ti++) tiePieces.push(span);
+    var tieTally = pack(tiePieces);
+    var gStuds = [];
+    studPositions(P, cornerX >= 1 ? D : T, sp).forEach(function (s0) {
+      var c = s0 + T / 2, h = (span / 2 - Math.abs(c - span / 2)) * pr;
+      if (h >= 2) gStuds.push({ s: s0, c: c, h: h });
+    });
+    var gPieces = []; gStuds.forEach(function (q) { gPieces.push(q.h, q.h); });
+    var gTally = pack(gPieces);
+    var skinSqft = (2 * (P + Q) * HL + 2 * span * rise / 2) / 144;
+    var skinSheets = Math.ceil(skinSqft * (1 + waste) / 32);
+    var lowPeak = HL + RD + rise, highPeak = HT + RD + rise;
+
+    /* ---------- hardware ---------- */
+    var perim = 2 * (P + Q) / 12;
+    var winchLb = Math.max(1000, Math.ceil(weight * 3 / 500) * 500);
+    var ropeFt = Math.ceil(2 * (travel + 36) / 12);
+    var stroke = travel;
+    var actRetract = stroke + 9;   // typical pin-to-pin length of a retracted actuator
+    if (lift === 'actuator' && actRetract > restH + 0.01) warnings.push('A ' + inch(stroke) + ' stroke actuator is about ' + inch(actRetract) + ' long retracted, but the box floor rests only ' + inch(Math.max(0, restH)) + ' above the base. An actuator pushing straight up from the base will not fit. Use the winch, or a half-stroke actuator working through a 2:1 cable and pulley.');
+
+    /* ---------- list rows ---------- */
+    function add(item, sub, buy, qty) { rows.push({ item: item, sub: sub, buy: buy, qty: qty }); text.push(qty + ' × ' + buy + ' — ' + item + (sub ? ' (' + sub + ')' : '')); }
+    function sec(label) { rows.push({ sec: label }); text.push(''); text.push(label.toUpperCase()); }
+
+    sec('Lower frame');
+    Object.keys(studTally).sort(byNum).forEach(function (s) {
+      add('Studs', 'cut each to ' + inch(studLen) + ', includes ' + postsN + ' for the ' + (rollers ? 'roller' : 'slide') + ' posts', '2x4 × ' + s + '′', Math.ceil(studTally[s] * (1 + waste)));
+    });
+    Object.keys(plateTally).sort(byNum).forEach(function (s) {
+      add('Plates', 'bottom plate plus ' + (topPlates === 2 ? 'doubled' : 'single') + ' top plate', '2x4 × ' + s + '′', plateTally[s]);
+    });
+    add('Lower wall skin and gable fill (optional)', fmt1(skinSqft) + ' sq ft, exterior ply or siding substrate', '4×8 sheet', skinSheets);
+
+    sec('Upper box');
+    add('Plywood, ' + inch(tx), fmt1(plyArea) + ' sq ft: box panels, deck, ' + (tv ? '' : 'floor, ') + 'and base', '4×8 sheet', plySheets);
+    Object.keys(cleatTally).sort(byNum).forEach(function (s) {
+      add('Cleats', '4 posts × ' + inch(panelH) + ', ring cleats top and bottom', '2x2 × ' + s + '′', Math.ceil(cleatTally[s] * (1 + waste)));
+    });
+
+    sec('Roof');
+    if (rafStock) add('Rafters', 'cut each to ' + fi(rafLen) + ' plus angle cuts, ' + rafPerSide + ' pairs', rsz + ' × ' + rafStock + '′', rafCount);
+    Object.keys(ridgeTally).sort(byNum).forEach(function (s) {
+      add('Ridge board', fi(alongTot) + ' long, one size deeper than the rafters', ridgeSize + ' × ' + s + '′', ridgeTally[s]);
+    });
+    Object.keys(tieTally).sort(byNum).forEach(function (s) {
+      add('Rafter ties', rafPerSide + ' × ' + inch(span) + ', across the walls, they rest on the box deck when raised', '2x4 × ' + s + '′', tieTally[s]);
+    });
+    if (gStuds.length) Object.keys(gTally).sort(byNum).forEach(function (s) {
+      add('Gable end studs', gPieces.length + ' pieces for both gable ends, longest ' + inch(gStuds.reduce(function (m, q) { return Math.max(m, q.h); }, 0)) + ', angle cut on top', '2x4 × ' + s + '′', Math.ceil(gTally[s] * (1 + waste)));
+    });
+    add('Rafter blocking', 'full-depth, at both walls, ' + inch(blockLen) + ' pieces', rsz + ' × 8′', blockBoards);
+    add('Fascia', fmt1(fasciaIn / 12) + ' linear ft', '1x6 or 2x6 × 12′', fasciaBoards);
+    add('Roof sheathing', fmt1(roofSqft) + ' sq ft', '4×8 sheet', roofSheets);
+
+    sec('Lift and guides');
+    if (rollers) {
+      add('Rollers', 'two at the base of each box wall, each ' + inch(cl) + ' proud of the face, running on the posts', 'roller', 8);
+      add('UHMW or hard-felt guide pads', 'one at the top of each lower wall, against the box, to stop sway where the box leaves the walls', 'pad', 4);
+    } else if (guide === 'slides') {
+      add('Heavy-duty full-extension slides', 'one on each face of the box, about ' + inch(panelH) + ' closed, each rated at least ' + Math.ceil(weight / 25) * 25 + ' lb', 'slide', 4);
+    } else {
+      add('T-rail or UHMW rail', 'one on each face of the box, ' + inch(panelH) + ' long, on the slide posts', 'rail', 4);
+      add('Glide blocks', 'two per rail, at the top and bottom of the box', 'block', 8);
+    }
+    if (tv) {
+      add('TV lift', inch(lfr) + ' retracted, ' + inch(lfs) + ' stroke, rated for at least ' + weight + ' lb, arms to the underside of the box deck. Set the stops to ' + inch(travel) + ' of travel', 'lift', 1);
+    } else if (lift === 'winch') {
+      add('12V cable winch', 'rated at least ' + winchLb + ' lb with a power-down brake', 'winch', 1);
+      add('Wire rope', '2 runs, ' + ropeFt + ' ft in total, with thimbles and clamps', '3/16″ rope', 1);
+      add('Pulleys', 'rated for the rope, mounted at the top of the lower walls', 'pulley', 4);
+    } else {
+      add('Linear actuator', 'stroke at least ' + inch(stroke) + ', force at least ' + Math.ceil(weight * 2 / 50) * 50 + ' lb', 'actuator', 1);
+    }
+    if (!tv) add('Limit switches', 'weatherproof, one at the top of travel and one at the bottom', 'switch', 2);
+    add(tv ? 'Lift trigger relay' : 'Motor reversing relays or controller', tv ? 'dry contact to the lift controller, from FPP or Home Assistant' : 'up and down from a button, FPP or Home Assistant', 'relay', 1);
+    add('Emergency stop and lockout', 'cuts power to the motor', 'switch', 1);
+    add('Weatherstrip, roof seat', fmt1(perim) + ' linear ft of soft strip on top of the lower walls, sealing against the roof base', 'strip', Math.ceil(perim * (1 + waste) / 10));
+
+    var trs = rows.map(function (r) {
+      if (r.sec) return '<tr class="sec"><td colspan="3">' + r.sec + '</td></tr>';
+      return '<tr><td>' + r.item + (r.sub ? '<small>' + r.sub + '</small>' : '') + '</td><td>' + r.buy + '</td><td class="q">' + r.qty + '</td></tr>';
+    }).join('');
+    $('list').innerHTML = '<thead><tr><th>Item</th><th>Buy</th><th class="q">Qty</th></tr></thead><tbody>' + trs + '</tbody>';
+    lastText = 'Kiosk list — lower frame ' + fi(P) + ' × ' + fi(Q) + ', ' + fi(HL) + ' lower walls, raises to ' + fi(HT) + ', ' + fmt1(pitch) + ' in 12 peaked roof, ' + inch(ovLg) + ' long-side and ' + inch(ovSh) + ' short-side overhang\n' + text.join('\n');
+    $('warnings').innerHTML = warnings.map(function (w) { return '<p class="warn">' + w + '</p>'; }).join('');
+
+    /* ---------- facts ---------- */
+    $('facts').innerHTML =
+      '<div class="fact"><b>' + inch(travel) + '</b><span>Lift travel, ' + inch(OV) + ' overlap when raised</span></div>' +
+      '<div class="fact"><b>' + fmt1(bL) + ' × ' + fmt1(bW) + ' × ' + fmt1(boxH) + '</b><span>Upper box, outside</span></div>' +
+      '<div class="fact"><b>' + fmt1(nL) + ' × ' + fmt1(nW) + ' × ' + fmt1(nH) + '</b><span>Equipment bay, about ' + rackU + 'U of rack height</span></div>' +
+      '<div class="fact roof"><b>' + fi(lowPeak) + ' / ' + fi(highPeak) + '</b><span>Peak height, lowered / raised</span></div>';
+
+    /* ---------- drawing ---------- */
+    $('tabs').querySelectorAll('button').forEach(function (b) { b.setAttribute('aria-pressed', b.dataset.view === view ? 'true' : 'false'); });
+    $('printTitle').textContent = 'PGC Kiosk Lift Calculator. ' + VIEWNAME[view] + '. Lower frame ' + fi(P) + ' × ' + fi(Q) + ', walls ' + fi(HL) + ' lowered and ' + fi(HT) + ' raised.';
+    $('viewnote').textContent = {
+      front: 'Cut through the middle, looking at the long wall. Left: show over. Right: show running.',
+      side: 'Cut through the middle, looking at the short wall. Left: show over. Right: show running.',
+      plan: 'Seen from above with the roof as a dashed outline.',
+      walls: 'The fixed lower walls as built, with stud centers measured from the left end.',
+      box: 'The plywood parts for the upper box, laid flat.',
+      roof: 'Roof seen from above, with rafter centers and overhangs.'
+    }[view];
+    var halo = ' stroke="var(--bg)" stroke-width="1.1" paint-order="stroke" stroke-linejoin="round"';
+    function txt(x, y, str, size, fill, anchor, rot) {
+      return '<text x="' + x + '" y="' + y + '" font-size="' + (size || 3.6) + '" text-anchor="' + (anchor || 'middle') + '" fill="' + (fill || 'var(--ink)') + '"' +
+        (rot ? ' transform="rotate(' + rot + ' ' + x + ' ' + y + ')"' : '') + halo + '>' + str + '</text>';
+    }
+    function ln(xa, ya, xb, yb, col) { return '<line x1="' + xa + '" y1="' + ya + '" x2="' + xb + '" y2="' + yb + '" stroke="' + (col || 'var(--muted)') + '" stroke-width="0.4"/>'; }
+    var ink = ' stroke="var(--ink)" stroke-width="0.4"';
+    var roofFill = ' fill="var(--pencil)" fill-opacity="0.35" stroke="var(--pencil)" stroke-width="0.8"';
+
+    function drawSection(kind) {
+      var front = kind === 'front';
+      var len = front ? P : Q, ov = front ? ovSh : ovLg;
+      var top = highPeak + 14;
+      function Y(h) { return top - h; }
+      function R(x, h0, h1, w, fill, extra) { return '<rect x="' + x + '" y="' + Y(h1) + '" width="' + w + '" height="' + (h1 - h0) + '" fill="' + fill + '"' + (extra || '') + '/>'; }
+      function vdim(x, h0, h1, label, col) {
+        return ln(x, Y(h0), x, Y(h1)) + ln(x - 1.6, Y(h0), x + 1.6, Y(h0)) + ln(x - 1.6, Y(h1), x + 1.6, Y(h1)) +
+          txt(x + 4, Y((h0 + h1) / 2), label, 3.4, col || 'var(--ink)', 'middle', -90);
+      }
+      var stateW = len + 2 * ov + 26;
+      var ox1 = ov, ox2 = ov + stateW;
+      var g = '';
+      function state(ox, seat, raised) {
+        var s = '';
+        var bx = ox + D + cl, bw = len - 2 * D - 2 * cl, b0 = seat - boxH;
+        s += ln(ox - ov - 4, Y(0), ox + len + ov + 4, Y(0), 'var(--muted)').replace('stroke-width="0.4"', 'stroke-width="0.8"');
+        // upper box, then the part of it still inside the lower walls
+        s += R(bx, b0, seat, bw, 'var(--panel)', ink);
+        s += R(bx, b0, seat, tx, 'var(--pencil)', ' fill-opacity="0.45"') + R(bx + bw - tx, b0, seat, tx, 'var(--pencil)', ' fill-opacity="0.45"') +
+             R(bx, seat - tx, seat, bw, 'var(--pencil)', ' fill-opacity="0.45"') + (tv ? '' : R(bx, b0, b0 + tx, bw, 'var(--pencil)', ' fill-opacity="0.45"'));
+        if (tv) s += R(ox + len / 2 - 2, 0, seat - tx, 4, 'var(--muted)', ' fill-opacity="0.35" stroke="var(--muted)" stroke-width="0.4"');
+        if (raised && b0 < HL) {
+          s += R(bx + tx, b0 + tx, HL, bw - 2 * tx, 'var(--warn)', ' fill-opacity="0.15"');
+          s += txt(bx + bw / 2, Y((b0 + HL) / 2) + 1.2, inch(HL - b0) + ' overlap', 3.4, 'var(--warn)');
+        }
+        // lower walls in section: plates and the wall between
+        [ox, ox + len - D].forEach(function (wx) {
+          s += R(wx, 0, HL, D, 'var(--chalk-soft)', ink) + R(wx, 0, T, D, 'var(--chalk)', ink) + R(wx, HL - TP, HL, D, 'var(--chalk)', ink);
+        });
+        s += txt(bx + bw / 2, Y((b0 + seat) / 2) + 1.2, raised ? 'upper box' : 'upper box inside', 3.6, 'var(--ink)');
+        s += txt(bx + bw / 2, Y((b0 + seat) / 2) + 6, fmt1(nL) + ' × ' + fmt1(nW) + ' bay', 3, 'var(--muted)');
+        // roof
+        if (front) {
+          var gt = function (x) { return seat + RD + (len / 2 - Math.abs(x - len / 2)) * pr; };
+          var gp = [[-ov, gt(-ov)], [len / 2, gt(len / 2)], [len + ov, gt(len + ov)], [len + ov, gt(len + ov) - RD], [len / 2, gt(len / 2) - RD], [-ov, gt(-ov) - RD]];
+          s += '<polygon points="' + gp.map(function (q) { return (ox + q[0]) + ',' + Y(q[1]); }).join(' ') + '"' + roofFill + '/>';
+          s += R(ox, seat, seat + T, len, 'var(--chalk)', ink);    // rafter tie
+        } else {
+          s += R(ox - ov, seat + RD, seat + RD + rise, len + 2 * ov, 'var(--pencil)', ' fill-opacity="0.15" stroke="var(--pencil)" stroke-width="0.6"');
+          s += R(ox - ov, seat, seat + RD, len + 2 * ov, 'var(--pencil)', ' fill-opacity="0.35" stroke="var(--pencil)" stroke-width="0.8"');
+        }
+        s += txt(ox + len / 2, 6, raised ? 'RAISED, SHOW RUNNING' : 'LOWERED, SHOW OVER', 4.4, 'var(--ink)');
+        var xd = ox + len + ov + 6;
+        s += vdim(xd, 0, HL, 'lower walls ' + inch(HL));
+        if (raised) s += vdim(xd, HL, HT, 'travel ' + inch(travel), 'var(--warn)');
+        s += vdim(xd + 7, 0, seat + RD + rise, 'peak ' + inch(seat + RD + rise), 'var(--pencil)');
+        return s;
+      }
+      g += state(ox1, HL, false) + state(ox2, HT, true);
+      if (restH > 0.5) g += txt(ox1 + len / 2, Y(restH) - 1.5, 'box bottom rests ' + inch(restH) + ' above the base', 3, 'var(--muted)');
+      $('plan').setAttribute('viewBox', '-6 0 ' + (ox2 + len + ov + 26 + 6) + ' ' + (top + 6));
+      $('plan').setAttribute('aria-label', (front ? 'Front' : 'Side') + ' section, lowered and raised');
+      $('legend').innerHTML = '<span><i class="sw-stud"></i>Lower wall plates</span><span><i class="sw-box"></i>Upper box (panels, deck' + (tv ? '' : ', floor') + ')</span><span><i class="sw-ovl"></i>Box still inside the lower walls</span><span><i class="sw-roof"></i>Roof</span>' + (tv ? '<span>Gray column: TV lift</span>' : '');
+      $('wallnotes').innerHTML = '';
+      $('plan').innerHTML = g;
+    }
+
+    function drawPlan() {
+      var m = 6, vx = -ovSh - m, vy = -ovLg - m, vw = P + 2 * ovSh + 2 * m, vh = Q + 2 * ovLg + 2 * m;
+      var svg = '';
+      var rafSvg = '';
+      rafStarts.forEach(function (s0) { var c = s0 + T / 2; rafSvg += '<line x1="' + (-ovSh) + '" y1="' + (-ovLg + c) + '" x2="' + (P + ovSh) + '" y2="' + (-ovLg + c) + '"/>'; });
+      svg += '<g stroke="var(--pencil)" stroke-width="0.5" opacity="0.5">' + rafSvg + '</g>';
+      svg += '<rect x="' + (-ovSh) + '" y="' + (-ovLg) + '" width="' + (P + 2 * ovSh) + '" height="' + (Q + 2 * ovLg) + '" fill="none" stroke="var(--pencil)" stroke-width="1" stroke-dasharray="4 3"/>';
+      svg += '<line x1="' + (P / 2) + '" y1="' + (-ovLg) + '" x2="' + (P / 2) + '" y2="' + (Q + ovLg) + '" stroke="var(--pencil)" stroke-width="1.6"/>';
+      svg += '<text x="' + (P / 2 - 3) + '" y="' + (Q / 2 + 18) + '" font-size="3.2" text-anchor="middle" fill="var(--pencil)" transform="rotate(-90 ' + (P / 2 - 3) + ' ' + (Q / 2 + 18) + ')">ridge</text>';
+      svg += '<rect x="0" y="0" width="' + P + '" height="' + Q + '" fill="var(--chalk-soft)" stroke="var(--ink)" stroke-width="0.6"/>';
+      svg += '<rect x="' + D + '" y="' + D + '" width="' + iL + '" height="' + iW + '" fill="var(--bg)" stroke="var(--ink)" stroke-width="0.4"/>';
+      var st = '';
+      wallStuds('back').forEach(function (p) { st += '<rect x="' + p + '" y="0" width="' + T + '" height="' + D + '"/>'; });
+      wallStuds('front').forEach(function (p) { st += '<rect x="' + p + '" y="' + (Q - D) + '" width="' + T + '" height="' + D + '"/>'; });
+      wallStuds('left').forEach(function (p) { st += '<rect x="0" y="' + p + '" width="' + D + '" height="' + T + '"/>'; });
+      wallStuds('right').forEach(function (p) { st += '<rect x="' + (P - D) + '" y="' + p + '" width="' + D + '" height="' + T + '"/>'; });
+      [[0, 0], [1, 0], [0, 1], [1, 1]].forEach(function (c) {
+        function CR(u0, v0, du, dv) { return '<rect x="' + (c[0] ? P - u0 - du : u0) + '" y="' + (c[1] ? Q - v0 - dv : v0) + '" width="' + du + '" height="' + dv + '"/>'; }
+        if (cornerX >= 1) st += CR(D - T, 0, T, D);
+        if (cornerX >= 2) st += CR(0, D + T, D, T);
+      });
+      svg += '<g fill="var(--chalk)">' + st + '</g>';
+      // guide posts for the rollers or slides
+      var ps = '';
+      postAt(P).forEach(function (c) { ps += '<rect x="' + (c - postW / 2) + '" y="0" width="' + postW + '" height="' + D + '"/><rect x="' + (c - postW / 2) + '" y="' + (Q - D) + '" width="' + postW + '" height="' + D + '"/>'; });
+      postAt(Q).forEach(function (c) { ps += '<rect x="0" y="' + (c - postW / 2) + '" width="' + D + '" height="' + postW + '"/><rect x="' + (P - D) + '" y="' + (c - postW / 2) + '" width="' + D + '" height="' + postW + '"/>'; });
+      svg += '<g fill="var(--warn)">' + ps + '</g>';
+      // upper box inside the lower walls
+      svg += '<rect x="' + (D + cl) + '" y="' + (D + cl) + '" width="' + bL + '" height="' + bW + '" fill="var(--pencil)" fill-opacity="0.25" stroke="var(--ink)" stroke-width="0.6"/>';
+      svg += '<rect x="' + (D + cl + tx) + '" y="' + (D + cl + tx) + '" width="' + nL + '" height="' + nW + '" fill="var(--panel)" stroke="var(--ink)" stroke-width="0.3"/>';
+      svg += txt(P / 2 + 7, Q / 2 + 1, 'bay ' + fmt1(nL) + ' × ' + fmt1(nW), 2.6);
+      $('plan').setAttribute('viewBox', vx + ' ' + vy + ' ' + vw + ' ' + vh);
+      $('plan').setAttribute('aria-label', 'Top-down plan showing walls, upper box, roof edge and rafters');
+      $('plan').innerHTML = svg;
+      $('wallnotes').innerHTML = '<h3>Fit inside the lower walls</h3><ul>' +
+        '<li>Clear inside the lower walls: ' + inch(iL) + ' × ' + inch(iW) + '.</li>' +
+        '<li>Upper box, outside: ' + inch(bL) + ' × ' + inch(bW) + ', leaving ' + inch(cl) + ' on every side for the slides or rails.</li>' +
+        '<li>Equipment bay, inside the ' + inch(tx) + ' plywood: ' + inch(nL) + ' × ' + inch(nW) + ' × ' + inch(nH) + ' tall, about ' + rackU + 'U of rack height. Only shallow gear fits front to back.</li>' +
+        '<li>Guide posts (red): ' + (rollers ? 'a single stud at the quarter points of each wall, one for each roller' : 'a doubled stud at the center of each wall, so each slide has a ' + inch(2 * T) + ' face to mount to') + '.</li></ul>';
+      $('legend').innerHTML = '<span><i class="sw-stud"></i>Wall studs</span><span><i class="sw-post"></i>Guide posts</span><span><i class="sw-box"></i>Upper box</span><span><i class="sw-roof"></i>Roof edge with overhang</span><span><i class="sw-raft"></i>Rafters</span>';
+    }
+
+    function drawWalls() {
+      var g = '', wn = '';
+      var yoff = 0;
+      function wallEl(label, len, studs, plateLen, extras) {
+        function Y(h) { return yoff + 6 + HL - h; }
+        function B(s0, w0, h0, h1, fill, extra) { return '<rect x="' + s0 + '" y="' + Y(h1) + '" width="' + w0 + '" height="' + (h1 - h0) + '" fill="' + fill + '"' + (extra || '') + '/>'; }
+        var s = txt(len / 2, yoff + 3, label, 3.2, 'var(--ink)');
+        s += B(0, len, 0, HL, 'var(--bg)', ink);
+        s += B(0, plateLen, 0, T, 'var(--chalk)', ink) + B(0, plateLen, HL - TP, HL, 'var(--chalk)', ink);
+        studs.forEach(function (s0) { s += B(s0, T, T, HL - TP, 'var(--chalk)'); });
+        extras.forEach(function (s0) { s += B(s0, T, T, HL - TP, 'var(--chalk)'); });
+        var pcs = postAt(len);
+        pcs.forEach(function (c) {
+          s += B(c - postW / 2, postW, T, HL - TP, 'var(--warn)');
+          if (!rollers) s += '<text x="' + c + '" y="' + (Y(HL / 2) + 1) + '" font-size="3" text-anchor="middle" fill="var(--bg)" stroke="var(--warn)" stroke-width="1.1" paint-order="stroke" transform="rotate(-90 ' + c + ' ' + (Y(HL / 2) + 1) + ')">slide post</text>';
+        });
+        var seen = {};
+        studs.concat(extras, pcs.map(function (c) { return c - T / 2; })).forEach(function (s0) {
+          var cx = s0 + T / 2, k = Math.round(cx * 4);
+          if (seen[k]) return; seen[k] = 1;
+          s += '<text x="' + cx + '" y="' + (Y(0) + 4) + '" font-size="3" text-anchor="end" fill="var(--muted)" transform="rotate(-90 ' + cx + ' ' + (Y(0) + 4) + ')">' + inch(cx) + '</text>';
+        });
+        yoff += HL + 36;
+        return s;
+      }
+      var longStuds = wallStuds('front');
+      var longExtra = cornerX >= 1 ? [D - T, P - D] : [];
+      g += wallEl('LONG WALL × 2, ' + inch(P), P, longStuds, P, longExtra);
+      var shortStuds = studPositions(shortLen, cornerX >= 2 ? 2 * T : T);
+      var shortExtra = cornerX >= 2 ? [T, shortLen - 2 * T] : [];
+      g += wallEl('SHORT WALL × 2, ' + inch(shortLen), shortLen, shortStuds, shortLen, shortExtra);
+      function postNote(len) { return rollers ? '<li>Roller posts: 2 single studs, centers ' + postAt(len).map(inch).join(', ') + '.</li>' : '<li>Slide post: 2 studs side by side, centered at ' + inch(len / 2) + '.</li>'; }
+      function cs(a) { return a.map(function (s0) { return inch(s0 + T / 2); }).join(', '); }
+      wn = '<h3>Long walls (2)</h3><ul>' +
+        '<li>Plates: ' + plateN + ' × ' + inch(P) + ' each wall (one bottom plate, ' + (topPlates === 2 ? 'two top plates' : 'one top plate') + ').</li>' +
+        '<li>Studs: ' + longStuds.length + ' × ' + inch(studLen) + ', centers ' + cs(longStuds) + ' from the left end.</li>' +
+        (longExtra.length ? '<li>Extra corner studs: 2 × ' + inch(studLen) + ', centers ' + cs(longExtra) + '.</li>' : '') +
+        postNote(P) + '</ul>' +
+        '<h3>Short walls (2)</h3><ul>' +
+        '<li>Plates: ' + plateN + ' × ' + inch(shortLen) + ' each wall.</li>' +
+        '<li>Studs: ' + shortStuds.length + ' × ' + inch(studLen) + ', centers ' + cs(shortStuds) + ' from the left end.</li>' +
+        (shortExtra.length ? '<li>Extra corner studs: 2 × ' + inch(studLen) + ', centers ' + cs(shortExtra) + '.</li>' : '') +
+        postNote(shortLen) + '</ul>' +
+        '<p class="hint">Studs are cut to ' + inch(studLen) + ' so each wall stands ' + inch(HL) + ' with ' + (plateN === 3 ? 'three' : 'two') + ' plates. A stud sits flush at each end and the rest are centered on ' + sp + '″.</p>';
+      var wv = Math.max(P + 12, 60);
+      $('plan').setAttribute('viewBox', (-6 - (wv - P - 12) / 2) + ' -2 ' + wv + ' ' + (yoff + 2));
+      $('plan').setAttribute('aria-label', 'Lower wall framing elevations');
+      $('plan').innerHTML = g;
+      $('wallnotes').innerHTML = wn;
+      $('legend').innerHTML = '<span><i class="sw-stud"></i>Studs and plates</span><span><i class="sw-post"></i>Guide post</span><span>Numbers under the wall: stud centers from the left end</span>';
+    }
+
+    function drawBox() {
+      var g = '', gap = 8, x = 0;
+      function panel(x0, y0, w, h, label, sub, slide) {
+        var s = '<rect x="' + x0 + '" y="' + y0 + '" width="' + w + '" height="' + h + '" fill="var(--pencil)" fill-opacity="0.18" stroke="var(--ink)" stroke-width="0.5"/>';
+        if (slide) s += '<rect x="' + (x0 + w / 2 - 1) + '" y="' + (y0 + 1) + '" width="2" height="' + (h - 2) + '" fill="none" stroke="var(--warn)" stroke-width="0.4" stroke-dasharray="2 1.5"/>';
+        s += txt(x0 + w / 2, y0 + h / 2 - 1, label, 3.6) + txt(x0 + w / 2, y0 + h / 2 + 4, sub, 3.2, 'var(--muted)');
+        return s;
+      }
+      g += panel(x, 0, bL, panelH, 'Long panel', inch(bL) + ' × ' + inch(panelH), true); x += bL + gap;
+      g += panel(x, 0, bL, panelH, 'Long panel', inch(bL) + ' × ' + inch(panelH), true); x += bL + gap;
+      g += panel(x, 0, nW, panelH, 'Short', inch(nW) + ' × ' + inch(panelH), true); x += nW + gap;
+      g += panel(x, 0, nW, panelH, 'Short', inch(nW) + ' × ' + inch(panelH), true);
+      var wTot = x + nW;
+      var y2 = panelH + gap + 6;
+      g += txt(0, panelH + 5, 'Dashed red: ' + (rollers ? 'roller line' : 'slide or rail') + ' on each outside face', 3.2, 'var(--warn)', 'start');
+      g += panel(0, y2, bL, bW, 'Top deck', inch(bL) + ' × ' + inch(bW), false);
+      if (!tv) g += panel(bL + gap, y2, bL, bW, 'Floor', inch(bL) + ' × ' + inch(bW), false);
+      $('plan').setAttribute('viewBox', '-4 -4 ' + (wTot + 8) + ' ' + (y2 + bW + 8));
+      $('plan').setAttribute('aria-label', 'Upper box plywood panels laid flat');
+      $('plan').innerHTML = g;
+      $('wallnotes').innerHTML = '<h3>Upper box parts</h3><ul>' +
+        '<li>' + inch(tx) + ' plywood: 2 long panels ' + inch(bL) + ' × ' + inch(panelH) + ', 2 short panels ' + inch(nW) + ' × ' + inch(panelH) + (tv ? ' and a top deck, ' : ', a top deck and a floor, each ') + inch(bL) + ' × ' + inch(bW) + '.</li>' +
+        '<li>The short panels fit between the long panels, and the deck' + (tv ? ' caps' : ' and floor cap') + ' the whole box. Outside: ' + inch(bL) + ' × ' + inch(bW) + ' × ' + inch(boxH) + '.</li>' +
+        '<li>Cleats: 4 posts × ' + inch(panelH) + ' (2x2) in the corners, plus 4 × ' + inch(cleatLong) + ' and 4 × ' + inch(cleatShort) + ' around the top and bottom inside, to screw the deck' + (tv ? '' : ' and floor') + ' to.</li>' + (tv ? '<li>No floor: the lift arms bolt to the underside of the deck, ' + inch(nH) + ' above the bottom edge. Mount gear on shelves screwed to the panels, around the lift column.</li>' : '') +
+        '<li>Keep every outside face flat. Anything proud of the face will catch on the lower walls when the box drops. Paint, vinyl or a thin skin under ' + inch(cl) + ' is fine.</li></ul>';
+      $('legend').innerHTML = '<span><i class="sw-box"></i>Plywood parts</span><span>Dashed red: slides</span>';
+    }
+
+    function drawRoof() {
+      var x0 = -ovSh, x1 = P + ovSh, y0 = -ovLg, y1 = Q + ovLg;
+      var g = '';
+      g += '<rect x="' + x0 + '" y="' + y0 + '" width="' + (x1 - x0) + '" height="' + (y1 - y0) + '" fill="var(--pencil)" fill-opacity="0.12" stroke="var(--pencil)" stroke-width="1"/>';
+      g += '<rect x="0" y="0" width="' + P + '" height="' + Q + '" fill="none" stroke="var(--muted)" stroke-width="0.6" stroke-dasharray="4 3"/>';
+      g += '<rect x="' + (D + cl) + '" y="' + (D + cl) + '" width="' + bL + '" height="' + bW + '" fill="none" stroke="var(--ink)" stroke-width="0.4" stroke-dasharray="2 1.5"/>';
+      rafStarts.forEach(function (s0) {
+        g += '<rect x="' + x0 + '" y="' + (y0 + s0) + '" width="' + (x1 - x0) + '" height="' + T + '" fill="var(--pencil)" fill-opacity="0.55" stroke="var(--ink)" stroke-width="0.2"/>';
+      });
+      for (var bi = 0; bi < rafStarts.length - 1; bi++) {
+        var b0 = rafStarts[bi] + T, bl = rafStarts[bi + 1] - b0;
+        [0, 1].forEach(function (side) {
+          g += '<rect x="' + (side ? P - T : 0) + '" y="' + (y0 + b0) + '" width="' + T + '" height="' + bl + '" fill="var(--ink)" fill-opacity="0.3"/>';
+        });
+      }
+      var ya = y0 - 6, pa = [x0, 0, P, x1], xb = x0 - 6, pb = [y0, 0, Q, y1];
+      g += ln(pa[0], ya, pa[3], ya) + ln(xb, pb[0], xb, pb[3]);
+      pa.forEach(function (px) { g += ln(px, ya - 1.6, px, ya + 1.6); });
+      pb.forEach(function (py) { g += ln(xb - 1.6, py, xb + 1.6, py); });
+      for (var ci = 0; ci < 3; ci++) {
+        if (pa[ci + 1] - pa[ci] > 0.5) g += txt((pa[ci] + pa[ci + 1]) / 2, ya - 2, inch(pa[ci + 1] - pa[ci]), 3.4, ci === 1 ? 'var(--ink)' : 'var(--pencil)');
+        if (pb[ci + 1] - pb[ci] > 0.5) g += txt(xb - 2, (pb[ci] + pb[ci + 1]) / 2, inch(pb[ci + 1] - pb[ci]), 3.4, ci === 1 ? 'var(--ink)' : 'var(--pencil)', 'middle', -90);
+      }
+      rafStarts.forEach(function (s0) { g += txt(x1 + 3, y0 + s0 + T / 2 + 1, inch(s0 + T / 2), 3, 'var(--muted)', 'start'); });
+      g += '<rect x="' + (P / 2 - T / 2) + '" y="' + y0 + '" width="' + T + '" height="' + (y1 - y0) + '" fill="var(--ink)"/>' + txt(P / 2 - 4, Q / 2, 'RIDGE BOARD ' + ridgeSize, 3, 'var(--warn)', 'middle', -90);
+      g += txt(P / 2, y1 + 8, rafCount + ' × ' + rsz + ' rafters, ' + fi(rafLen) + ' each, ' + rsp + '″ on center, ' + fmt1(pitch) + ' in 12 pitch', 3.4);
+      var mL = 16, mT = 14;
+      $('plan').setAttribute('viewBox', (x0 - mL) + ' ' + (y0 - mT) + ' ' + (x1 - x0 + mL + 24) + ' ' + (y1 - y0 + mT + 14));
+      $('plan').setAttribute('aria-label', 'Roof layout seen from above');
+      $('plan').innerHTML = g;
+      $('legend').innerHTML = '<span><i class="sw-raft"></i>Rafters, centers marked from the top edge</span><span><i class="sw-roof"></i>Lower walls below</span><span>Dashed: upper box under the roof</span><span>Gray bars: blocking over the walls</span>';
+      var starts = rafStarts.map(function (s0) { return s0 + T / 2; });
+      $('wallnotes').innerHTML = '<h3>Roof layout</h3><ul>' +
+        '<li>Rafters: ' + rafCount + ' × ' + rsz + ' in ' + rafPerSide + ' matching pairs, each ' + fi(rafLen) + ' along the slope from the ridge to the tail, with a plumb cut at the ridge and the tail and a birdsmouth at the wall.</li>' +
+        '<li>Centers from the top edge of the roof, looking down: ' + starts.map(inch).join(', ') + '. A rafter sits flush at each end and the rest are centered on ' + rsp + '″, with each pair meeting directly across the ridge.</li>' +
+        '<li>Ridge board: 1 × ' + ridgeSize + ', ' + fi(alongTot) + ' long, centered over the walls.</li>' +
+        '<li>Overhang, measured level: ' + inch(ovLg) + ' past the long walls and ' + inch(ovSh) + ' past the short walls. The tails measure ' + inch(ovSh * slopeF) + ' along the rafter.</li>' +
+        '<li>Slope: ' + fmt1(pitch) + ' in 12 (' + angle.toFixed(1) + '°), set by the ' + inch(rise) + ' rise over the ' + fi(span / 2) + ' half span. Under 4 in 12 would need metal or membrane roofing.</li>' +
+        '<li>Rafter ties: ' + rafPerSide + ' × ' + inch(span) + ' 2x4, one per pair. With the roof raised, the ties sit on the box deck, so the roof rides on the box as one unit. Lowered, the rafters and ties seat on the lower top plates.</li>' +
+        '<li>Blocking: ' + blockPieces + ' × ' + inch(blockLen) + ', between the rafters over both short walls. Fascia: ' + fmt1(fasciaIn / 12) + ' linear ft. Roof sheathing: ' + fmt1(roofSqft) + ' sq ft, ' + roofSheets + ' sheets with waste.</li>' +
+        (gStuds.length ? '<li>Gable end studs: ' + gPieces.length + ' pieces for both ends, from ' + inch(gStuds[0].h) + ' to ' + inch(gStuds.reduce(function (m, q) { return Math.max(m, q.h); }, 0)) + ' long, centers ' + gStuds.map(function (q) { return inch(q.c); }).join(', ') + ' from the left end. Cut the top of each to the roof slope.</li>' : '') + '</ul>';
+    }
+
+    if (view === 'roof') drawRoof();
+    else if (view === 'plan') drawPlan();
+    else if (view === 'walls') drawWalls();
+    else if (view === 'box') drawBox();
+    else drawSection(view === 'side' ? 'side' : 'front');
+
+    /* ---------- notes ---------- */
+    var notes = [];
+    notes.push('Everything in the moving part is a ' + inch(boxH) + ' tall box: ' + inch(travel) + ' of travel plus ' + inch(OV) + ' that stays inside the lower walls when raised. A short overlap lets the box rack and bind, so keep it as long as the box allows.');
+    notes.push('Keep the outside of the upper box flat. It slides through the lower walls, so decorations that stick out (columns, trim, gingerbread) go on the lower walls and the roof. A thin skin, paint or vinyl under ' + inch(cl) + ' is fine on the box. The roof overhang hides the seam when lowered.');
+    notes.push('The roof rides on the box deck when raised and seats on the lower top plates when lowered. Add weatherstrip on the plates and a rain plan: the box is open at the top seam while raised, so lower it in rain.');
+    notes.push(tv
+      ? 'TV lift: its ' + inch(lfs) + ' stroke is more than the ' + inch(travel) + ' you need, so set the lower stop to seat the roof base on the weatherstrip and the upper stop at ' + inch(travel) + ' of travel. Bolt the arms to the underside of the box deck and keep the column centered. The lift column takes the middle of the equipment bay, so plan gear on the walls and shelves around it, and give the lift a clear path to retract fully.'
+      : lift === 'winch'
+      ? 'Winch: run one rope run on each of two opposite corners so the box lifts square. Use limit switches at both ends, and a winch with a brake so it holds when stopped. A motor that can only pull up still needs a controlled way down (power out or a clutch).'
+      : 'Actuators are long when retracted. See the warning above before committing to one.');
+    notes.push('Add mechanical stops at the top and bottom of travel in addition to the ' + (tv ? 'lift stops' : 'limit switches') + ', a lockout so nobody gets a hand in the gap while it moves, and keep kids and pets clear during a show.');
+    notes.push('Bolt or stake the base. Raised, this is a tall, top-heavy box with a roof acting as a sail, so it needs real anchors in wind.');
+    notes.push('The base ply is part of the plywood count. The bottom of the box rests ' + inch(Math.max(0, restH)) + ' above it when lowered.');
+    if (rollers) notes.push('Rollers sit at the base of each box wall and ride on the posts. Where the box leaves the lower walls, add a pad at the top of each wall (on the list) so the box is held at two heights. The lift is stiff, but a roof this tall still acts like a sail, so the guides are what keep it from swaying.');
+    if (topPlates === 1) notes.push('With a single top plate, the roof base is what carries the roof onto the lower walls. Make it a stiff frame that lands on the studs where it can, and keep decorations light, because the soft weatherstrip can only seal if the roof actually lands evenly.');
+    notes.push('Use pressure-treated lumber for the bottom plates on concrete or near the ground.');
+    notes.push('Rafter spans, slide ratings and fasteners depend on your loads. This is a planning estimate, so test the lift with the finished weight before you trust it, and size the guides with margin.');
+    $('notes').innerHTML = notes.map(function (n) { return '<li>' + n + '</li>'; }).join('');
+  }
+
+  /* ---------- events ---------- */
+  document.addEventListener('input', calc);
+  document.addEventListener('change', calc);
+  $('copy').addEventListener('click', function () {
+    var s = $('status');
+    if (!lastText) { s.textContent = 'Nothing to copy yet.'; return; }
+    function fallback() {
+      var ta = document.createElement('textarea');
+      ta.value = lastText; ta.style.position = 'fixed'; ta.style.opacity = '0';
+      document.body.appendChild(ta); ta.select();
+      var ok = false;
+      try { ok = document.execCommand('copy'); } catch (err) {}
+      document.body.removeChild(ta);
+      s.textContent = ok ? 'List copied.' : 'Copy was blocked. Take a screenshot of the list instead.';
+    }
+    try {
+      navigator.clipboard.writeText(lastText).then(function () { s.textContent = 'List copied.'; }, fallback);
+    } catch (err) { fallback(); }
+  });
+  $('printBtn').addEventListener('click', function () { window.print(); });
+
+  // one printout of everything: summary, shopping list, every drawing and the notes
+  function printProject() {
+    if (!lastText) { $('status').textContent = 'Enter the building size first.'; return; }
+    var saved = view, pages = [];
+    ['front', 'side', 'plan', 'walls', 'box', 'roof'].forEach(function (v) {
+      view = v; calc();
+      pages.push('<section class="pk-page"><h2 class="pk-title">' + $('printTitle').textContent + '</h2>' + $('plan').outerHTML.replace(' id="plan"', '') +
+        '<div class="legend">' + $('legend').innerHTML + '</div><div class="wallnotes">' + $('wallnotes').innerHTML + '</div></section>');
+    });
+    view = saved; calc();
+
+    var sel = function (id) { var e = $(id); return e.options ? e.options[e.selectedIndex].text : e.value; };
+    var rows = [
+      ['Lower frame', fi(Math.max(num('len', 0), num('wid', 0))) + ' × ' + fi(Math.min(num('len', 0), num('wid', 0))) + ' outside, walls ' + fi(num('hl', 40)) + ' high, ' + sel('tp')],
+      ['Wall framing', 'Studs ' + sel('sp') + ', ' + sel('corner')],
+      ['Raised wall height', fi(num('ht', 72)) + ', travel ' + inch(num('ht', 72) - num('hl', 40)) + ', overlap ' + inch(num('ovr', 8))],
+      ['Upper box', inch(num('ply', 0.75)) + ' plywood, ' + inch(num('clr', 0.5)) + ' clearance per side, ' + sel('guide')],
+      ['Lift', sel('lift') + ', moving weight ' + num('wt', 150) + ' lb'],
+      ['Roof', 'Peaked, ' + inch(num('rise', 9)) + ' rise, rafters ' + sel('rsz') + ' at ' + sel('rsp')],
+      ['Overhang', inch(num('ovl', 6)) + ' past the long walls, ' + inch(num('ovs', 8)) + ' past the short walls'],
+      ['Waste allowance', num('waste', 10) + '%']
+    ];
+    var first = '<section class="pk-page"><div class="pk-head"><img src="images/prickly_guy_200px.png" alt=""><div><h2 class="pk-title" style="margin:0">PGC Kiosk Lift Calculator</h2>' +
+      '<div style="color:var(--muted)">Project packet, ' + new Date().toLocaleDateString() + '</div></div></div>' +
+      '<table class="pk-sum">' + rows.map(function (r) { return '<tr><td>' + r[0] + '</td><td>' + r[1] + '</td></tr>'; }).join('') + '</table>' +
+      '<div class="pk-h3">Shopping list</div>' + $('warnings').innerHTML + $('list').outerHTML.replace(' id="list"', '') + '</section>';
+    var last = '<section class="pk-page"><h2 class="pk-title">Before you build</h2><ul class="notes">' + $('notes').innerHTML + '</ul></section>';
+
+    $('packet').innerHTML = first + pages.join('') + last;
+    document.body.classList.add('packet');
+    var cleanup = function () { document.body.classList.remove('packet'); $('packet').innerHTML = ''; };
+    window.addEventListener('afterprint', cleanup, { once: true });
+    window.print();
+  }
+  $('printAllBtn').addEventListener('click', printProject);
+  $('tabs').addEventListener('click', function (e) {
+    var v = e.target.dataset && e.target.dataset.view;
+    if (v) { view = v; calc(); }
+  });
+
+  calc();
+})();
+</script>
+</body>
+</html>
