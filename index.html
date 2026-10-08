@@ -107,8 +107,16 @@ button.primary { background: var(--chalk); border-color: var(--chalk); color: #f
 .wallnotes li { margin-bottom: 3px; }
 .wallnotes .hint { margin-top: 12px; }
 .only-print { display: none; }
+#packet { display: none; }
+.pk-title { font-family: "Barlow Condensed", "Arial Narrow", sans-serif; font-weight: 700; font-size: 26px; margin: 0 0 8px; }
+.pk-head { display: flex; align-items: center; gap: 12px; margin-bottom: 10px; }
+.pk-head img { width: 56px; height: 56px; border-radius: 50%; }
+.pk-sum { margin-bottom: 14px; }
+.pk-sum td, .pk-sum th { font-size: 14px; padding: 4px 8px 4px 0; }
+.pk-sum td:first-child { color: var(--muted); white-space: nowrap; width: 1%; }
+.pk-h3 { font-family: "Barlow Condensed", "Arial Narrow", sans-serif; font-weight: 600; font-size: 20px; margin: 14px 0 4px; }
 @media print {
-  @page { size: landscape; margin: 12mm; }
+  @page { margin: 12mm; }
   :root, :root:not([data-theme="light"]), :root[data-theme="dark"] {
     --bg: #FFFFFF; --panel: #FFFFFF; --ink: #000000; --muted: #444444; --line: #BBBBBB;
     --chalk: #2B5FB8; --chalk-soft: #DCE6F6; --pencil: #C98A0B; --warn: #A5402D; --warn-soft: #F6E3DE;
@@ -121,6 +129,14 @@ button.primary { background: var(--chalk); border-color: var(--chalk); color: #f
   .only-print { display: block; font-weight: 600; margin-bottom: 8px; }
   .plan { border: 0; }
   .wallnotes { break-inside: avoid; }
+  body.packet .wrap { display: none !important; }
+  body.packet #packet { display: block; }
+  .pk-page { break-after: page; }
+  .pk-page:last-child { break-after: auto; }
+  .pk-page .plan { width: 100%; height: auto; max-height: 165mm; border: 0; }
+  .plan { max-height: 175mm; }
+  .pk-page tr { break-inside: avoid; }
+  .pk-page .legend { margin: 4px 0 0; }
 }
 .sw-hdr { width: 18px; height: 8px; border: 1px dashed var(--ink); }
 .sw-raft { width: 18px; height: 0; border-top: 1.5px solid var(--pencil); opacity: .5; vertical-align: 3px !important; }
@@ -265,6 +281,7 @@ tr.sec td { padding-top: 16px; font-family: "Barlow Condensed", sans-serif; font
           </div>
           <label class="tog" id="frameTog"><input type="checkbox" id="frame" checked> Show framing</label>
           <button type="button" id="printBtn" style="margin-left:auto">Print this view</button>
+          <button type="button" id="printAllBtn">Print whole project</button>
         </div>
         <p class="hint" id="viewnote" style="margin-bottom:8px"></p>
         <svg id="plan" class="plan" role="img" aria-label="Drawing of the building"></svg>
@@ -289,6 +306,8 @@ tr.sec td { padding-top: 16px; font-family: "Barlow Condensed", sans-serif; font
     </div>
   </div>
 </div>
+
+<div id="packet"></div>
 
 <script>
 (function () {
@@ -1020,6 +1039,55 @@ tr.sec td { padding-top: 16px; font-family: "Barlow Condensed", sans-serif; font
 
   /* ---------- view tabs and drag ---------- */
   $('printBtn').addEventListener('click', function () { window.print(); });
+
+  // one printout of everything: summary, shopping list, plan, each wall, the roof and the notes
+  function printProject() {
+    if (!lastText) { $('status').textContent = 'Enter the building size first.'; return; }
+    var saved = view, frameWas = $('frame').checked, pages = [];
+    var views = ['plan', 'front', 'back', 'left', 'right'];
+    if ($('roofOn').checked) views.push('roof');
+    $('frame').checked = true;   // walls are printed with their framing
+    views.forEach(function (v) {
+      view = v; calc();
+      pages.push('<section class="pk-page"><h2 class="pk-title">' + $('printTitle').textContent + '</h2>' + $('plan').outerHTML.replace(' id="plan"', '') +
+        '<div class="legend">' + $('legend').innerHTML + '</div><div class="wallnotes">' + $('wallnotes').innerHTML + '</div></section>');
+    });
+    $('frame').checked = frameWas;
+    view = saved; calc();
+
+    var sel = function (id) { var e = $(id); return e.options ? e.options[e.selectedIndex].text : e.value; };
+    var rows = [
+      ['Building', fi(num('len', 0)) + ' × ' + fi(num('wid', 0)) + ' outside, walls ' + fi(num('ht', 96)) + ' high'],
+      ['Wall framing', 'Studs ' + sel('sp') + ', ' + sel('corner')],
+      ['Waste allowance', num('waste', 10) + '%']
+    ];
+    if ($('roofOn').checked) {
+      rows.push(['Roof', sel('rtype') + ', ' + num('pitch', 3) + ' in 12, rafters ' + sel('rsz') + ' at ' + sel('rsp')]);
+      rows.push(['Overhang', inch(num('ovl', 12)) + ' past the long walls, ' + inch(num('ovs', 12)) + ' past the short walls']);
+      rows.push(['Rafters span across the', sel('dir')]);
+      if ($('rtype').value === 'shed') rows.push(['High side', sel('hi')]);
+    } else {
+      rows.push(['Roof', 'Not included']);
+    }
+    var op = openings.map(function (o, i) {
+      var ro = roOf(o);
+      return '<tr><td>' + o.type + ' ' + (i + 1) + '</td><td>' + WALLS[o.wall] + '</td><td>' + inch(parseFloat(o.pos) || 0) + '</td><td>' + inch(parseFloat(o.w) || 0) + ' × ' + inch(parseFloat(o.h) || 0) +
+        (o.type === 'Window' ? ', sill ' + inch(parseFloat(o.sill) || 0) : '') + '</td><td>' + inch(ro.w) + ' × ' + inch(ro.h) + '</td></tr>';
+    }).join('');
+    var first = '<section class="pk-page"><div class="pk-head"><img src="images/prickly_guy_200px.png" alt=""><div><h2 class="pk-title" style="margin:0">PGC Framing Calculator</h2>' +
+      '<div style="color:var(--muted)">Project packet, ' + new Date().toLocaleDateString() + '</div></div></div>' +
+      '<table class="pk-sum">' + rows.map(function (r) { return '<tr><td>' + r[0] + '</td><td>' + r[1] + '</td></tr>'; }).join('') + '</table>' +
+      (op ? '<div class="pk-h3">Doors and windows</div><table class="pk-sum"><thead><tr><th>Opening</th><th>Wall</th><th>From left/top</th><th>Size</th><th>Rough opening</th></tr></thead><tbody>' + op + '</tbody></table>' : '') +
+      '<div class="pk-h3">Shopping list</div>' + $('warnings').innerHTML + $('list').outerHTML.replace(' id="list"', '') + '</section>';
+    var last = '<section class="pk-page"><h2 class="pk-title">Before you buy</h2><ul class="notes">' + $('notes').innerHTML + '</ul></section>';
+
+    $('packet').innerHTML = first + pages.join('') + last;
+    document.body.classList.add('packet');
+    var cleanup = function () { document.body.classList.remove('packet'); $('packet').innerHTML = ''; };
+    window.addEventListener('afterprint', cleanup, { once: true });
+    window.print();
+  }
+  $('printAllBtn').addEventListener('click', printProject);
   $('tabs').addEventListener('click', function (e) {
     var v = e.target.dataset && e.target.dataset.view;
     if (v) { view = v; calc(); }
