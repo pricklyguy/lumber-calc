@@ -146,7 +146,7 @@ tr.sec td { padding-top: 16px; font-family: "Barlow Condensed", sans-serif; font
     <img class="logo" src="images/prickly_guy_200px.png" alt="Prickly Guy Creations logo" width="72" height="72">
     <div>
       <h1>PGC Framing Calculator</h1>
-      <p>Four 2x4 walls and a single-slope roof with overhangs. All measurements in inches.</p>
+      <p>Four 2x4 walls and a single-slope or peaked roof with overhangs. All measurements in inches.</p>
     </div>
   </header>
 
@@ -206,6 +206,10 @@ tr.sec td { padding-top: 16px; font-family: "Barlow Condensed", sans-serif; font
         <h2 id="h-roof">Roof</h2>
         <label class="tog" style="margin-bottom:12px"><input type="checkbox" id="roofOn" checked> Include roof</label>
         <div class="grid2">
+          <div class="roofonly field full">
+            <label for="rtype">Roof type</label>
+            <select id="rtype"><option value="shed" selected>Single slope (shed)</option><option value="gable">Peaked (gable)</option></select>
+          </div>
           <div class="roofonly field">
             <label for="pitch">Pitch (rise per 12)</label>
             <div class="inp"><input id="pitch" type="number" inputmode="decimal" step="any" min="0.5" value="3"><span class="unit">in</span></div>
@@ -385,7 +389,9 @@ tr.sec td { padding-top: 16px; font-family: "Barlow Condensed", sans-serif; font
     var L = num('len', 0), W = num('wid', 0), H = num('ht', 96);
     var sp = +$('sp').value, cornerX = +$('corner').value;
     var roofOn = $('roofOn').checked;
+    var gable = roofOn && $('rtype').value === 'gable';   // peaked roof: two slopes meeting at a ridge
     document.querySelectorAll('.roofonly').forEach(function (el) { el.style.display = roofOn ? '' : 'none'; });
+    $('hi').parentNode.style.display = (roofOn && !gable) ? '' : 'none';
     var pitch = num('pitch', 3);
     var ovLongV = roofOn ? Math.max(0, num('ovl', 12)) : 0, ovShortV = roofOn ? Math.max(0, num('ovs', 12)) : 0;
     var longIsL = L >= W;
@@ -503,35 +509,53 @@ tr.sec td { padding-top: 16px; font-family: "Barlow Condensed", sans-serif; font
     var spanIsW = (dir === 'short') ? (W <= L) : (W > L);   // true when rafters run front to back
     var ovAcross = spanIsW ? ovY : ovX;    // past the two walls the rafters rest on
     var ovAlong = spanIsW ? ovX : ovY;     // past the two gable ends
-    var run = span + 2 * ovAcross;
     var alongTot = along + 2 * ovAlong;
     var slopeF = Math.sqrt(1 + Math.pow(pitch / 12, 2));
-    var rafLen = run * slopeF;
+    var halfRun = span / 2 + ovAcross;                     // peaked roof: from the center line out to the tail
+    var rafPlane = (gable ? halfRun : span + 2 * ovAcross) * slopeF;   // length of one roof plane along the slope
+    var rafLen = gable ? rafPlane - (T / 2) * slopeF : rafPlane;       // peaked: stop short of the ridge board's center
     var rafStock = stockFor(rafLen);
     var rafStarts = studPositions(alongTot, 0, rsp);   // rafter starts: a rafter flush at each end, the rest centered on the spacing
-    var rafCount = rafStarts.length;
+    var rafPerSide = rafStarts.length;
+    var rafCount = gable ? 2 * rafPerSide : rafPerSide;
     var rafDepth = { '2x4': 3.5, '2x6': 5.5, '2x8': 7.25, '2x10': 9.25 }[rsz];
-    var rise = span * pitch / 12;
+    var rise = gable ? (span / 2) * pitch / 12 : span * pitch / 12;   // peaked: ridge above the wall tops; shed: high edge above low
+    var ridgeSize = { '2x4': '2x6', '2x6': '2x8', '2x8': '2x10', '2x10': '2x12' }[rsz];
     var hiSel = $('hi');
     hiSel.options[0].text = spanIsW ? 'Back (top)' : 'Left';
     hiSel.options[1].text = spanIsW ? 'Front (bottom)' : 'Right';
     var hiSide = hiSel.value === 'last' ? (spanIsW ? 'front' : 'right') : (spanIsW ? 'back' : 'left');
     var angle = Math.atan(pitch / 12) * 180 / Math.PI;
-    if (roofOn && !rafStock) warnings.push('Rafters come out ' + fi(rafLen) + ' long. That is longer than 20′ stock. Add a support wall or reduce the span.');
-    var limit = MAXSPAN[rsp][rsz];
-    if (roofOn && span > limit) {
-      var better = ['2x4', '2x6', '2x8', '2x10'].filter(function (s) { return MAXSPAN[rsp][s] >= span; })[0];
-      warnings.push(rsz + ' rafters at ' + rsp + '″ are a stretch over ' + fi(span) + '. ' + (better ? 'Try ' + better + ' or closer spacing.' : 'Add a beam or support wall.'));
+    if (roofOn && !rafStock) warnings.push('Rafters come out ' + fi(rafLen) + ' long. That is longer than 20′ stock. ' + (gable ? 'Reduce the span or the overhang.' : 'Add a support wall or reduce the span.'));
+    var limit = MAXSPAN[rsp][rsz], spanCheck = gable ? span / 2 : span;
+    if (roofOn && spanCheck > limit) {
+      var better = ['2x4', '2x6', '2x8', '2x10'].filter(function (s) { return MAXSPAN[rsp][s] >= spanCheck; })[0];
+      warnings.push(rsz + ' rafters at ' + rsp + '″ are a stretch over ' + fi(spanCheck) + '. ' + (better ? 'Try ' + better + ' or closer spacing.' : 'Add a beam or support wall.'));
     }
     var blockLen = rsp - T;
     var perBoard = Math.max(1, Math.floor(96 / blockLen));
-    var blockPieces = 2 * (rafCount - 1);
+    var blockPieces = 2 * (rafPerSide - 1);
     var blockBoards = Math.ceil(blockPieces / perBoard);
-    var fasciaIn = 2 * alongTot + 2 * rafLen;
+    var fasciaIn = 2 * alongTot + (gable ? 4 : 2) * rafPlane;
     var fasciaBoards = Math.ceil(fasciaIn * (1 + waste) / 144);
-    var roofSqft = alongTot * rafLen / 144;
+    var roofSqft = (gable ? 2 : 1) * alongTot * rafPlane / 144;
     var roofSheets = Math.ceil(roofSqft * (1 + waste) / 32);
-    var wallSqft = Math.max(0, (2 * (L + W) * H - openArea) / 144);
+    // peaked roof: ridge board, rafter ties across the walls, and the studs that fill each triangular gable end
+    var ridgeTally = gable ? pack([alongTot]) : {};
+    var tiePieces = [];
+    if (gable) for (var ti = 0; ti < rafPerSide; ti++) tiePieces.push(span);
+    var tieTally = pack(tiePieces);
+    var gStuds = [];   // above the top plate, in the view of a gable end wall (left to right)
+    // same grid as the wall studs below, so every gable stud stands directly over a wall stud
+    var gGrid = !gable ? [] : spanIsW ? studPositions(shortLen, cornerX >= 2 ? 2 * T : T, sp).map(function (q) { return D + q; }) : studPositions(L, cornerX >= 1 ? D : T, sp);
+    gGrid.forEach(function (s0) {
+      var c = s0 + T / 2, h = (span / 2 - Math.abs(c - span / 2)) * pitch / 12;
+      if (h >= 2) gStuds.push({ s: s0, c: c, h: h });
+    });
+    var gPieces = [];
+    gStuds.forEach(function (q) { gPieces.push(q.h, q.h); });   // two gable ends
+    var gTally = pack(gPieces);
+    var wallSqft = Math.max(0, (2 * (L + W) * H - openArea) / 144 + (gable ? span * rise / 144 : 0));
     var wallSheets = Math.ceil(wallSqft * (1 + waste) / 32);
 
     /* ---------- list rows ---------- */
@@ -559,7 +583,18 @@ tr.sec td { padding-top: 16px; font-family: "Barlow Condensed", sans-serif; font
 
     if (roofOn) {
     sec('Roof');
-    if (rafStock) add('Rafters', 'cut each to ' + fi(rafLen) + ' plus angle cuts', rsz + ' × ' + rafStock + "′", rafCount);
+    if (rafStock) add('Rafters', 'cut each to ' + fi(rafLen) + ' plus angle cuts' + (gable ? ', ' + rafPerSide + ' pairs' : ''), rsz + ' × ' + rafStock + "′", rafCount);
+    if (gable) {
+      Object.keys(ridgeTally).sort(function (x, y) { return x - y; }).forEach(function (st) {
+        add('Ridge board', fi(alongTot) + ' long, one size deeper than the rafters', ridgeSize + ' × ' + st + "′", ridgeTally[st]);
+      });
+      Object.keys(tieTally).sort(function (x, y) { return x - y; }).forEach(function (st) {
+        add('Rafter ties', rafPerSide + ' × ' + inch(span) + ', one per rafter pair, across the walls (they can double as ceiling joists)', '2x4 × ' + st + "′", tieTally[st]);
+      });
+      if (gStuds.length) Object.keys(gTally).sort(function (x, y) { return x - y; }).forEach(function (st) {
+        add('Gable end studs', gPieces.length + ' pieces for both gable ends, longest ' + inch(gStuds.reduce(function (m, q) { return Math.max(m, q.h); }, 0)) + ', angle cut on top', '2x4 × ' + st + "′", Math.ceil(gTally[st] * (1 + waste)));
+      });
+    }
     add('Rafter blocking', 'full-depth, at both walls, ' + inch(blockLen) + ' pieces', rsz + " × 8′", blockBoards);
     add('Fascia', fmt1(fasciaIn / 12) + ' linear ft', '1x6 or 2x6 × 12′', fasciaBoards);
     add('Roof sheathing', fmt1(roofSqft) + ' sq ft', '4×8 sheet', roofSheets);
@@ -570,7 +605,7 @@ tr.sec td { padding-top: 16px; font-family: "Barlow Condensed", sans-serif; font
       return '<tr><td>' + r.item + (r.sub ? '<small>' + r.sub + '</small>' : '') + '</td><td>' + r.buy + '</td><td class="q">' + r.qty + '</td></tr>';
     }).join('');
     $('list').innerHTML = '<thead><tr><th>Item</th><th>Buy</th><th class="q">Qty</th></tr></thead><tbody>' + trs + '</tbody>';
-    lastText = 'Framing list — ' + fi(L) + ' × ' + fi(W) + ', ' + fi(H) + ' walls' + (roofOn ? ', ' + pitch + ' in 12 roof, ' + inch(ovLongV) + ' long-side and ' + inch(ovShortV) + ' short-side overhang' : ', no roof') + '\n' + text.join('\n');
+    lastText = 'Framing list — ' + fi(L) + ' × ' + fi(W) + ', ' + fi(H) + ' walls' + (roofOn ? ', ' + pitch + ' in 12 ' + (gable ? 'peaked' : 'single-slope') + ' roof, ' + inch(ovLongV) + ' long-side and ' + inch(ovShortV) + ' short-side overhang' : ', no roof') + '\n' + text.join('\n');
 
     $('warnings').innerHTML = warnings.map(function (w) { return '<p class="warn">' + w + '</p>'; }).join('');
 
@@ -579,7 +614,7 @@ tr.sec td { padding-top: 16px; font-family: "Barlow Condensed", sans-serif; font
       '<div class="fact"><b>' + inch(studLen) + '</b><span>Stud length</span></div>' +
       '<div class="fact"><b>' + studsNet + '</b><span>Studs in the walls</span></div>' +
       (roofOn ? '<div class="fact roof"><b>' + fi(rafLen) + '</b><span>Rafter length, ' + angle.toFixed(1) + '° slope</span></div>' +
-      '<div class="fact roof"><b>' + rafCount + '</b><span>Rafters, high edge ' + inch(rise) + ' above low</span></div>' : '');
+      '<div class="fact roof"><b>' + rafCount + '</b><span>' + (gable ? 'Rafters, ridge ' + inch(rise) + ' above the walls' : 'Rafters, high edge ' + inch(rise) + ' above low') + '</span></div>' : '');
 
     /* ---------- drawing ---------- */
     var WALLNAME = { front: 'Front', back: 'Back', left: 'Left', right: 'Right' };
@@ -612,6 +647,15 @@ tr.sec td { padding-top: 16px; font-family: "Barlow Condensed", sans-serif; font
       var slopeAlong = horiz ? !spanIsW : spanIsW;   // rafters run along this wall, so the slope shows in profile
       if (!roofOn) {
         // no roof to draw
+      } else if (gable && slopeAlong) {
+        // gable end: the roof is a peak
+        var gtop = function (x) { return H + RD + (len / 2 - Math.abs(x - len / 2)) * pr; };
+        var gp = [[-ov, gtop(-ov)], [len / 2, gtop(len / 2)], [len + ov, gtop(len + ov)], [len + ov, gtop(len + ov) - RD], [len / 2, gtop(len / 2) - RD], [-ov, gtop(-ov) - RD]];
+        g += '<polygon points="' + gp.map(function (q) { return q[0] + ',' + Y(q[1]); }).join(' ') + '"' + roofFill + '/>';
+      } else if (gable) {
+        // eave wall of a peaked roof: the fascia band, with the roof plane rising behind it
+        g += box(-ov, len + 2 * ov, H + RD, H + RD + rise, 'var(--pencil)', ' fill-opacity="0.15" stroke="var(--pencil)" stroke-width="0.6"');
+        g += box(-ov, len + 2 * ov, H, H + RD, 'var(--pencil)', ' fill-opacity="0.35" stroke="var(--pencil)" stroke-width="0.8"');
       } else if (slopeAlong) {
         var hiRight = spanIsW ? (wall === 'left' ? hiSide === 'front' : hiSide === 'back') : (wall === 'front' ? hiSide === 'right' : hiSide === 'left');
         var top = function (x) { return H + RD + (hiRight ? x : span - x) * pr; };
@@ -657,6 +701,15 @@ tr.sec td { padding-top: 16px; font-family: "Barlow Condensed", sans-serif; font
           });
           if (o.isWin) g += box(a, o.w, o.sill - T, o.sill, 'var(--chalk)');
         });
+      }
+      if (gable && slopeAlong) {
+        // studs above the top plate that fill the gable triangle, each cut long-point to the roof line
+        if (frame) {
+          g += '<polygon points="0,' + Y(H) + ' ' + len + ',' + Y(H) + ' ' + (len / 2) + ',' + Y(H + rise) + '" fill="none" stroke="var(--ink)" stroke-width="0.3"/>';
+          gStuds.forEach(function (q) { g += '<rect x="' + q.s + '" y="' + Y(H + q.h) + '" width="' + T + '" height="' + q.h + '" fill="var(--chalk)"/>'; });
+        } else {
+          g += '<polygon points="0,' + Y(H) + ' ' + len + ',' + Y(H) + ' ' + (len / 2) + ',' + Y(H + rise) + '" fill="var(--panel)" stroke="var(--ink)" stroke-width="0.6"/>';
+        }
       }
       here.forEach(function (o) {
         var x0 = X(o.pos, o.w), cx = x0 + o.w / 2, bot = o.isWin ? o.sill : 0;
@@ -727,6 +780,9 @@ tr.sec td { padding-top: 16px; font-family: "Barlow Condensed", sans-serif; font
         '<li>Plates: 3 × ' + inch(plateLen) + ' (one bottom plate, two top plates).</li>' +
         '<li>Studs: ' + stds.length + ' × ' + inch(studLen) + ', centers ' + listIn(stds) + ' from the left end. A stud sits flush at each end and the rest are centered on ' + sp + '″.</li>' +
         (cornerStuds.length ? '<li>Extra corner studs: 2 × ' + inch(studLen) + ', centers ' + listIn(cornerStuds) + '.</li>' : '') + '</ul>' +
+        (roofOn && gable && (horiz ? !spanIsW : spanIsW) && gStuds.length
+          ? '<h3>Gable end studs</h3><ul><li>' + gStuds.length + ' studs above the top plate, centers ' + gStuds.map(function (q) { return inch(q.c); }).join(', ') + ' from the left outer corner, directly over the wall studs.</li>' +
+            '<li>Lengths to the long point, in the same order: ' + gStuds.map(function (q) { return inch(q.h); }).join(', ') + '. Cut the top of each to the roof slope (' + pitch + ' in 12, ' + angle.toFixed(1) + '° from level) so it meets the rafter.</li></ul>' : '') +
         '<p class="hint">Everything is measured to stud centers from the left end of the wall as seen in this view' + (horiz ? '' : ', taken at the end of the plates where this wall meets the front or back wall') + '. Below, only framing that differs from the standard layout is listed.</p>';
       if (!here.length) wn += '<p class="hint">No openings on this wall.</p>';
       here.slice().sort(function (p, q) { return X(p.pos, p.w) - X(q.pos, q.w); }).forEach(function (o) {
@@ -748,7 +804,7 @@ tr.sec td { padding-top: 16px; font-family: "Barlow Condensed", sans-serif; font
       $('plan').setAttribute('aria-label', WALLNAME[wall] + ' wall elevation seen from outside');
       $('plan').innerHTML = g;
       $('legend').innerHTML = frame
-        ? '<span><i class="sw-stud"></i>Studs, kings, jacks and cripples</span><span>Numbers under the wall: stud centers from the left end</span><span><i class="sw-hdr"></i>Header</span>' + (roofOn ? '<span><i class="sw-roof"></i>Roof</span><span style="color:var(--warn)">Dashed red: extra wall height the sloped roof needs</span>' : '')
+        ? '<span><i class="sw-stud"></i>Studs, kings, jacks and cripples</span><span>Numbers under the wall: stud centers from the left end</span><span><i class="sw-hdr"></i>Header</span>' + (roofOn ? '<span><i class="sw-roof"></i>Roof</span>' + (gable ? '' : '<span style="color:var(--warn)">Dashed red: extra wall height the sloped roof needs</span>') : '')
         : (roofOn ? '<span><i class="sw-roof"></i>Roof</span>' : '') + '<span>Turn on Show framing to see studs and headers</span>';
     }
 
@@ -796,9 +852,15 @@ tr.sec td { padding-top: 16px; font-family: "Barlow Condensed", sans-serif; font
         var q = { back: [L / 2, 8, 0], front: [L / 2, W - 4, 0], left: [8, W / 2, -90], right: [L - 4, W / 2, -90] }[side];
         return txt(q[0], q[1], str, 4, fill, 'middle', q[2]);
       }
-      g += edgeLbl(hiSide, 'HIGH SIDE', 'var(--warn)') + edgeLbl(lowSide, 'LOW SIDE', 'var(--muted)');
-      g += txt(L / 2, W / 2 - 2, rafCount + ' × ' + rsz + ' rafters, ' + fi(rafLen) + ' each', 4.2);
-      g += txt(L / 2, W / 2 + 4, rsp + '″ on center, ' + pitch + ' in 12 pitch', 3.6, 'var(--muted)');
+      var tx = (gable && !spanIsW) ? L / 4 : L / 2, ty = (gable && spanIsW) ? W / 2 + 12 : W / 2 - 2;
+      if (gable) {
+        g += spanIsW ? '<rect x="' + x0 + '" y="' + (W / 2 - T / 2) + '" width="' + (x1 - x0) + '" height="' + T + '" fill="var(--ink)"/>' + txt(L / 2, W / 2 - 4, 'RIDGE BOARD ' + ridgeSize, 4, 'var(--warn)')
+                     : '<rect x="' + (L / 2 - T / 2) + '" y="' + y0 + '" width="' + T + '" height="' + (y1 - y0) + '" fill="var(--ink)"/>' + txt(L / 2 - 4, W / 2, 'RIDGE BOARD ' + ridgeSize, 4, 'var(--warn)', 'middle', -90);
+      } else {
+        g += edgeLbl(hiSide, 'HIGH SIDE', 'var(--warn)') + edgeLbl(lowSide, 'LOW SIDE', 'var(--muted)');
+      }
+      g += txt(tx, ty, rafCount + ' × ' + rsz + ' rafters, ' + fi(rafLen) + ' each', 4.2);
+      g += txt(tx, ty + 6, rsp + '″ on center, ' + pitch + ' in 12 pitch', 3.6, 'var(--muted)');
       var mL = 16, mT = 14;
       $('plan').setAttribute('viewBox', (x0 - mL) + ' ' + (y0 - mT) + ' ' + (x1 - x0 + mL + (spanIsW ? 8 : 24)) + ' ' + (y1 - y0 + mT + (spanIsW ? 24 : 8)));
       $('plan').setAttribute('aria-label', 'Roof layout seen from above');
@@ -807,14 +869,21 @@ tr.sec td { padding-top: 16px; font-family: "Barlow Condensed", sans-serif; font
 
       var starts = rafStarts.map(function (s0) { return s0 + T / 2; });
       var wn = '<h3>Roof layout</h3><ul>' +
-        '<li>Rafters: ' + rafCount + ' × ' + rsz + ', each ' + fi(rafLen) + ' measured along the slope, including both overhangs, with a plumb cut at each end.</li>' +
-        '<li>Centers from the ' + (spanIsW ? 'left' : 'top') + ' edge of the roof, looking down: ' + starts.map(inch).join(', ') + '. A rafter sits flush at each end and the rest are centered on ' + rsp + '″.</li>' +
+        (gable
+          ? '<li>Rafters: ' + rafCount + ' × ' + rsz + ' in ' + rafPerSide + ' matching pairs, each ' + fi(rafLen) + ' along the slope from the ridge to the tail, with a plumb cut at the ridge and the tail and a birdsmouth at the wall.</li>'
+          : '<li>Rafters: ' + rafCount + ' × ' + rsz + ', each ' + fi(rafLen) + ' measured along the slope, including both overhangs, with a plumb cut at each end.</li>') +
+        '<li>Centers from the ' + (spanIsW ? 'left' : 'top') + ' edge of the roof, looking down: ' + starts.map(inch).join(', ') + '. A rafter sits flush at each end and the rest are centered on ' + rsp + '″' + (gable ? ', with each pair meeting directly across the ridge' : '') + '.</li>' +
+        (gable ? '<li>Ridge board: 1 × ' + ridgeSize + ', ' + fi(alongTot) + ' long, centered over the walls. It should be one size deeper than the rafters so the plumb cut bears fully on it.</li>' : '') +
         '<li>Overhang, measured level: ' + inch(ovLongV) + ' past the long walls and ' + inch(ovShortV) + ' past the short walls. The tails on the ' + (spanIsW ? 'front and back' : 'left and right') + ' walls measure ' + inch(ovAcross * slopeF) + ' along the rafter.</li>' +
-        '<li>Slope: ' + pitch + ' in 12 (' + angle.toFixed(1) + '°). The plumb cut is ' + (90 - angle).toFixed(1) + '° from the rafter edge. The roof rises ' + inch(rise) + ' across the ' + fi(span) + ' span, high on the ' + hiSide + ' side.</li>' +
+        (gable
+          ? '<li>Slope: ' + pitch + ' in 12 (' + angle.toFixed(1) + '°). The plumb cut is ' + (90 - angle).toFixed(1) + '° from the rafter edge. The ridge rises ' + inch(rise) + ' above the wall tops across the ' + fi(span) + ' span.</li>'
+          : '<li>Slope: ' + pitch + ' in 12 (' + angle.toFixed(1) + '°). The plumb cut is ' + (90 - angle).toFixed(1) + '° from the rafter edge. The roof rises ' + inch(rise) + ' across the ' + fi(span) + ' span, high on the ' + hiSide + ' side.</li>') +
         '<li>Birdsmouth: a ' + inch(D) + ' seat where the rafter rests on the wall plate. Keep the heel cut no deeper than ' + inch(rafDepth / 3) + ' (a third of the rafter).</li>' +
+        (gable ? '<li>Rafter ties: ' + rafPerSide + ' × ' + inch(span) + ' 2x4, one per rafter pair, across the walls near the top plates. They stop the roof pushing the walls apart and can double as ceiling joists.</li>' : '') +
         '<li>Blocking: ' + blockPieces + ' × ' + inch(blockLen) + ', between the rafters over both walls.</li>' +
+        (gable && gStuds.length ? '<li>Gable end studs: ' + gPieces.length + ' pieces for both ends, from ' + inch(gStuds[0].h) + ' to ' + inch(gStuds.reduce(function (m, q) { return Math.max(m, q.h); }, 0)) + ' long. Their lengths are listed under each gable end wall.</li>' : '') +
         '<li>Fascia: ' + fmt1(fasciaIn / 12) + ' linear ft. Roof sheathing: ' + fmt1(roofSqft) + ' sq ft, ' + roofSheets + ' sheets with waste.</li>' +
-        '<li>The walls are level, so the high-side wall needs ' + inch(rise) + ' more height for the rafters to sit on both walls. See the wall views.</li></ul>';
+        (gable ? '' : '<li>The walls are level, so the high-side wall needs ' + inch(rise) + ' more height for the rafters to sit on both walls. See the wall views.</li>') + '</ul>';
       $('wallnotes').innerHTML = wn;
     }
 
@@ -832,7 +901,13 @@ tr.sec td { padding-top: 16px; font-family: "Barlow Condensed", sans-serif; font
     });
     svg += '<g stroke="var(--pencil)" stroke-width="0.5" opacity="0.5">' + rafSvg + '</g>';
     svg += '<rect x="' + (-ovX) + '" y="' + (-ovY) + '" width="' + (L + 2 * ovX) + '" height="' + (W + 2 * ovY) + '" fill="none" stroke="var(--pencil)" stroke-width="1" stroke-dasharray="4 3"/>';
-    if ((hiSide === 'back' || hiSide === 'front' ? ovY : ovX) >= 6) {
+    if (gable) {
+      svg += spanIsW ? '<line x1="' + (-ovX) + '" y1="' + (W / 2) + '" x2="' + (L + ovX) + '" y2="' + (W / 2) + '" stroke="var(--pencil)" stroke-width="1.6"/>'
+                     : '<line x1="' + (L / 2) + '" y1="' + (-ovY) + '" x2="' + (L / 2) + '" y2="' + (W + ovY) + '" stroke="var(--pencil)" stroke-width="1.6"/>';
+      svg += spanIsW ? '<text x="' + (L / 2) + '" y="' + (W / 2 - 3) + '" font-size="4.5" text-anchor="middle" fill="var(--pencil)">ridge</text>'
+                     : '<text x="' + (L / 2 - 3) + '" y="' + (W / 2) + '" font-size="4.5" text-anchor="middle" fill="var(--pencil)" transform="rotate(-90 ' + (L / 2 - 3) + ' ' + (W / 2) + ')">ridge</text>';
+    }
+    if (!gable && (hiSide === 'back' || hiSide === 'front' ? ovY : ovX) >= 6) {
       var hov = hiSide === 'back' || hiSide === 'front' ? ovY : ovX;
       var hl = { back: [L / 2, -hov / 2 + 1.5, 0], front: [L / 2, W + hov / 2 + 1.5, 0], left: [-hov / 2 + 1.5, W / 2, -90], right: [L + hov / 2 + 1.5, W / 2, 90] }[hiSide];
       svg += '<text x="' + hl[0] + '" y="' + hl[1] + '" font-size="4.5" text-anchor="middle" fill="var(--pencil)" transform="rotate(' + hl[2] + ' ' + hl[0] + ' ' + hl[1] + ')">roof high side</text>';
@@ -900,7 +975,8 @@ tr.sec td { padding-top: 16px; font-family: "Barlow Condensed", sans-serif; font
     notes.push('Each opening gets two king studs (full length), two jack studs under the header, a doubled header on edge, and cripples above it (and below the sill on windows) wherever the stud layout lands inside the opening. Openings are measured from the floor, so a door height of 80 means the top of the rough opening is 80″ up. Window height is measured above the sill height.');
     notes.push('Long walls run full length. Short walls fit between them at ' + fi(shortLen) + '.');
     notes.push('Use pressure-treated lumber for the bottom plate on concrete or anything near the ground. Cut the plate out of door openings after the walls are up.');
-    if (roofOn) notes.push('Rafters sit on level walls and get a birdsmouth cut. Rafters run ' + fi(rafLen) + ' along the slope, which includes both overhangs.');
+    if (roofOn && gable) notes.push('Rafters meet at a ridge board and get a birdsmouth cut where they sit on the walls. Each rafter runs ' + fi(rafLen) + ' along the slope. Tie each pair across the walls so the roof cannot spread them. The gable end studs are cut to length one at a time, so start with the longest.');
+    else if (roofOn) notes.push('Rafters sit on level walls and get a birdsmouth cut. Rafters run ' + fi(rafLen) + ' along the slope, which includes both overhangs.');
     notes.push('Header sizes, rafter spans and fasteners depend on local code, snow and wind loads. This is a planning estimate, so confirm with your building department before you cut.');
     $('notes').innerHTML = notes.map(function (n) { return '<li>' + n + '</li>'; }).join('');
   }
